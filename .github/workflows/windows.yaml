@@ -35,12 +35,21 @@ jobs:
         working-directory: .\src
         run: python build_tools/update_deps.py
 
+      - name: Cache compiled Qt SDK
+        id: qt-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: src/third_party/qt
+          key: mozkey-qt-${{ runner.os }}-${{ runner.arch }}-windows-2025-x64-release-6.9.1-${{ hashFiles('src/build_tools/build_qt.py', 'src/build_tools/update_deps.py', 'src/build_tools/vs_util.py') }}
+
       - name: Build Qt for x64
+        if: steps.qt-cache.outputs.cache-hit != 'true'
         shell: cmd
         working-directory: .\src
         run: python build_tools/build_qt.py --release --confirm_license --target_arch=x64
 
       - name: Free disk space
+        if: steps.qt-cache.outputs.cache-hit != 'true'
         shell: cmd
         working-directory: .\src
         run: rmdir third_party\qt_src /s /q

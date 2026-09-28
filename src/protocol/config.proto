@@ -304,7 +304,13 @@ message Config {
   optional bool use_date_conversion = 80 [default = true];
   // Additional date formats, in candidate order. Supported tokens include
   // {YEAR}, {MONTH}, {DATE}, {HOUR}, and {MINUTE}.
+  // Legacy single preferred custom format kept for v0.1 compatibility.
+  optional string date_conversion_custom_format = 1026 [default = ""];
   repeated string date_conversion_custom_formats = 1027;
+  // Set after ordered date formats are initialized or migrated. An empty
+  // list can then intentionally disable custom date candidates.
+  optional bool date_conversion_custom_formats_initialized = 1028
+      [default = false];
   optional bool use_english_word_dictionary = 1029 [default = true];
   optional bool use_english_spelling_correction = 1030 [default = true];
   optional bool use_single_kanji_conversion = 81 [default = true];
