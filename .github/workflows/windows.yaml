@@ -1,22 +1,21 @@
-name: CI for Windows
-# https://github.com/google/mozc/blob/master/docs/build_mozc_in_windows.md
+name: Windows x64
 
-# Run on push.
-on: push
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
 
-permissions:
-  contents: read
-
-# Prevent previous workflows from running.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: windows-x64-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build_on_x64:
-    # https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md
+  build_x64:
     runs-on: windows-2025
     timeout-minutes: 120
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -25,307 +24,62 @@ jobs:
           submodules: false
           persist-credentials: false
 
-      - name: Try to restore update_deps cache
+      - name: Restore dependency cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: src/third_party_cache
-          key: update_deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/build_tools/update_deps.py') }}
+          key: update_deps-${{ runner.os }}-x64-${{ hashFiles('src/build_tools/update_deps.py') }}
 
-      - name: Install Dependencies
+      - name: Install dependencies
         shell: cmd
         working-directory: .\src
-        # This command uses src/third_party_cache as the download cache.
-        run: |
-          python build_tools/update_deps.py
+        run: python build_tools/update_deps.py
 
-      - name: Build Qt
+      - name: Build Qt for x64
         shell: cmd
         working-directory: .\src
-        run: |
-          python build_tools/build_qt.py --release --confirm_license
+        run: python build_tools/build_qt.py --release --confirm_license --target_arch=x64
 
-      # This is needed only for GitHub Actions where free disk space is quite limited.
-      - name: Delete Qt src to save disk space
+      - name: Free disk space
         shell: cmd
         working-directory: .\src
-        run: |
-          rmdir third_party\qt_src /s /q
+        run: rmdir third_party\qt_src /s /q
 
       - name: Test date and English word rewriters
         shell: cmd
         working-directory: .\src
-        run: |
-          bazelisk test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test --config release_build
+        env:
+          ANDROID_NDK_HOME: ""
+        run: bazelisk test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test --config release_build --platforms=//:windows-x86_64
 
-      - name: build artifacts
+      - name: Build x64 MSI
         shell: cmd
         working-directory: .\src
         env:
           ANDROID_NDK_HOME: ""
-        run: |
-          bazelisk build package --config release_build
+        run: bazelisk build package --config release_build --platforms=//:windows-x86_64
 
-      - name: upload Mozc64_x64.msi
+      - name: Prepare release assets
+        shell: pwsh
+        run: |
+          $msi = 'src/bazel-bin/win32/installer/Mozc64.msi'
+          Copy-Item -LiteralPath $msi -Destination 'Mozc64_x64.msi'
+          $hash = (Get-FileHash -LiteralPath 'Mozc64_x64.msi' -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath 'Mozc64_x64.msi.sha256' -Value "$hash  Mozc64_x64.msi" -Encoding ascii
+
+      - name: Upload x64 MSI
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: Mozc64_x64.msi
-          path: src/bazel-bin/win32/installer/Mozc64.msi
-          if-no-files-found: warn
+          name: Mozc64_x64
+          path: |
+            Mozc64_x64.msi
+            Mozc64_x64.msi.sha256
+          if-no-files-found: error
 
-  build_universal_on_x64:
-    # https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md
-    runs-on: windows-2025
-    timeout-minutes: 120
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          submodules: recursive
-          persist-credentials: false
-
-      - name: Try to restore update_deps cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: src/third_party_cache
-          key: update_deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/build_tools/update_deps.py') }}
-
-      - name: Install Dependencies
-        shell: cmd
-        working-directory: .\src
-        # This command uses src/third_party_cache as the download cache.
-        run: |
-          python build_tools/update_deps.py
-
-      - name: Build Qt
-        shell: cmd
-        working-directory: .\src
-        run: |
-          python build_tools/build_qt.py --release --confirm_license
-
-      # This is needed only for GitHub Actions where free disk space is quite limited.
-      - name: Delete Qt src to save disk space
-        shell: cmd
-        working-directory: .\src
-        run: |
-          rmdir third_party\qt_src /s /q
-
-      - name: build artifacts
-        shell: cmd
-        working-directory: .\src
+      - name: Publish tagged release for auto update
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
         env:
-          ANDROID_NDK_HOME: ""
+          GH_TOKEN: ${{ github.token }}
         run: |
-          bazelisk build package --config release_build --config win_universal_installer
-
-      - name: upload Mozc64_universal.msi
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: Mozc64_universal.msi
-          path: src/bazel-bin/win32/installer/Mozc64.msi
-          if-no-files-found: warn
-
-  build_on_arm64:
-    # https://github.com/actions/runner-images/blob/main/images/windows/Windows11-Arm64-Readme.md
-    runs-on: windows-11-arm
-    timeout-minutes: 120
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          submodules: false
-          persist-credentials: false
-
-      - name: Try to restore update_deps cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: src/third_party_cache
-          key: update_deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/build_tools/update_deps.py') }}
-
-      - name: Install Dependencies
-        shell: cmd
-        working-directory: .\src
-        # This command uses src/third_party_cache as the download cache.
-        run: |
-          python build_tools/update_deps.py
-
-      - name: Build Qt
-        shell: cmd
-        working-directory: .\src
-        run: |
-          python build_tools/build_qt.py --release --confirm_license
-
-      # This is needed only for GitHub Actions where free disk space is quite limited.
-      - name: Delete Qt src to save disk space
-        shell: cmd
-        working-directory: .\src
-        run: |
-          rmdir third_party\qt_src /s /q
-
-      - name: build artifacts
-        shell: cmd
-        working-directory: .\src
-        env:
-          ANDROID_NDK_HOME: ""
-        run: |
-          bazelisk build package --config release_build
-
-      - name: upload Mozc64_arm64.msi
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: Mozc64_arm64.msi
-          path: src/bazel-bin/win32/installer/Mozc64.msi
-          if-no-files-found: warn
-
-  test_on_x64:
-    # https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md
-    runs-on: windows-2025
-    timeout-minutes: 120
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          submodules: false
-          persist-credentials: false
-
-      - name: Try to restore update_deps cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: src/third_party_cache
-          key: update_deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/build_tools/update_deps.py') }}
-
-      - name: Install Dependencies
-        shell: cmd
-        working-directory: .\src
-        # This command uses src/third_party_cache as the download cache.
-        run: |
-          python build_tools/update_deps.py
-
-      - name: runtests
-        shell: cmd
-        working-directory: .\src
-        env:
-          ANDROID_NDK_HOME: ""
-        run: |
-          bazelisk test ... -c dbg --build_tests_only --build_event_json_file=bep.jsonl
-
-      - name: Collect failing test logs
-        if: failure()
-        shell: cmd
-        working-directory: .\src
-        run: |
-          python build_tools\collect_test_logs.py --bep bep.jsonl --out "%GITHUB_WORKSPACE%\test_logs"
-
-      - name: Upload failing test logs
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: test-logs-${{ runner.os }}-${{ runner.arch }}
-          path: test_logs
-          if-no-files-found: ignore
-
-  test_on_arm64:
-    # https://github.com/actions/runner-images/blob/main/images/windows/Windows11-Arm64-Readme.md
-    runs-on: windows-11-arm
-    timeout-minutes: 120
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          submodules: false
-          persist-credentials: false
-
-      - name: Try to restore update_deps cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: src/third_party_cache
-          key: update_deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/build_tools/update_deps.py') }}
-
-      - name: Install Dependencies
-        shell: cmd
-        working-directory: .\src
-        # This command uses src/third_party_cache as the download cache.
-        run: |
-          python build_tools/update_deps.py
-
-      - name: runtests
-        shell: cmd
-        working-directory: .\src
-        env:
-          ANDROID_NDK_HOME: ""
-        run: |
-          bazelisk test ... -c dbg --build_tests_only --build_event_json_file=bep.jsonl
-
-      - name: Collect failing test logs
-        if: failure()
-        shell: cmd
-        working-directory: .\src
-        run: |
-          python build_tools\collect_test_logs.py --bep bep.jsonl --out "%GITHUB_WORKSPACE%\test_logs"
-
-      - name: Upload failing test logs
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: test-logs-${{ runner.os }}-${{ runner.arch }}
-          path: test_logs
-          if-no-files-found: ignore
-
-  # actions/cache works without this job, but having this would increase the likelihood of cache hit
-  # in other jobs. Another approach would be to use "needs:".
-  # https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow
-  cache_deps_on_x64:
-    # https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md
-    runs-on: windows-2025
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          submodules: false
-          persist-credentials: false
-
-      - name: Try to restore update_deps cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: src/third_party_cache
-          key: update_deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/build_tools/update_deps.py') }}
-
-      - name: Install Dependencies
-        shell: cmd
-        working-directory: .\src
-        # This command uses src/third_party_cache as the download cache.
-        run: |
-          python build_tools/update_deps.py --cache_only
-
-  # actions/cache works without this job, but having this would increase the likelihood of cache hit
-  # in other jobs. Another approach would be to use "needs:".
-  # https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow
-  cache_deps_on_arm64:
-    # https://github.com/actions/runner-images/blob/main/images/windows/Windows11-Arm64-Readme.md
-    runs-on: windows-11-arm
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          submodules: false
-          persist-credentials: false
-
-      - name: Try to restore update_deps cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: src/third_party_cache
-          key: update_deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/build_tools/update_deps.py') }}
-
-      - name: Install Dependencies
-        shell: cmd
-        working-directory: .\src
-        # This command uses src/third_party_cache as the download cache.
-        run: |
-          python build_tools/update_deps.py --cache_only
+          gh release create $env:GITHUB_REF_NAME 'Mozc64_x64.msi' 'Mozc64_x64.msi.sha256' 'src/gui/about_dialog/update-mozc-minimal.ps1' --title "Mozc Date English $env:GITHUB_REF_NAME" --generate-notes

@@ -1,81 +1,29 @@
-[Mozc - a Japanese Input Method Editor designed for multi-platform](https://github.com/google/mozc)
-===================================
+# Mozc Date English
 
-Copyright 2010-2026 Google LLC
+公開版の [Mozc](https://github.com/google/mozc) を起点にした Windows x64 向けの派生版です。
+製品版 Google 日本語入力のソースではありません。
 
-Mozc is a Japanese Input Method Editor (IME) designed for multi-platform such as
-Android OS, Apple macOS, Chromium OS, GNU/Linux and Microsoft Windows.  This
-OpenSource project originates from
-[Google Japanese Input](http://www.google.com/intl/ja/ime/).
+追加機能は日付変換、英単語辞書による補完・綴り修正、アプリ内からの更新確認と
+GitHub Release 経由の自動更新です。既存の Mozkey-date とは別リポジトリです。
+詳しい機能と出典は [FORK.md](FORK.md) を参照してください。
 
-Mozc is not an officially supported Google product.
+## 入手・ビルド
 
-Build Status
-------------
+Windows x64 の MSI は [Releases](https://github.com/hglasswater-boop/mozkey-date-minimal/releases)
+から入手できます。公開前のビルド成果物は
+[Windows x64 CI](https://github.com/hglasswater-boop/mozkey-date-minimal/actions/workflows/windows.yaml)
+にあります。ローカルビルドは [公式の Windows 手順](docs/build_mozc_in_windows.md)
+を参照してください。
 
-| Linux | Windows | macOS | Android lib |
-|:-----:|:-------:|:-----:|:-----------:|
-| [![Linux](https://github.com/google/mozc/actions/workflows/linux.yaml/badge.svg)](https://github.com/google/mozc/actions/workflows/linux.yaml) | [![Windows](https://github.com/google/mozc/actions/workflows/windows.yaml/badge.svg)](https://github.com/google/mozc/actions/workflows/windows.yaml) | [![macOS](https://github.com/google/mozc/actions/workflows/macos.yaml/badge.svg)](https://github.com/google/mozc/actions/workflows/macos.yaml) | [![Android lib](https://github.com/google/mozc/actions/workflows/android.yaml/badge.svg)](https://github.com/google/mozc/actions/workflows/android.yaml) |
+## 更新
 
+「Mozc について」画面で「更新を確認」を押すと、このリポジトリの最新 Release を
+確認します。更新可能なときは「更新する」から x64 MSI をダウンロードし、SHA-256 を
+照合してから Windows Installer を起動します。更新時に管理者権限の確認が表示されます。
 
-What's Mozc?
-------------
-For historical reasons, the project name *Mozc* has two different meanings:
+リリースタグは `v` に続けてアプリの Mozc バージョンを付けます
+（例: `v3.34.6239.100`）。タグを push すると Windows x64 CI が MSI、チェックサム、
+更新スクリプトを Release に公開します。次のリリースでは `src/version.bzl` のビルド番号を
+増やしてください。
 
-1. Internal code name of Google Japanese Input that is still commonly used
-   inside Google.
-2. Project name to release a subset of Google Japanese Input in the form of
-   source code under OSS license without any warranty nor user support.
-
-In this repository, *Mozc* means the second definition unless otherwise noted.
-
-Detailed differences between Google Japanese Input and Mozc are described in [About Branding](docs/about_branding.md).
-
-For policies on vocabulary and conversion results, see
-[Vocabulary Policy](VOCABULARY_POLICY.md).
-
-Build Instructions
-------------------
-
-* [How to build Mozc for Android](docs/build_mozc_for_android.md): for Android library (`libmozc.so`)
-* [How to build Mozc for Linux](docs/build_mozc_for_linux.md): for Linux desktop
-* [How to build Mozc for macOS](docs/build_mozc_in_osx.md): for macOS build
-* [How to build Mozc for Windows](docs/build_mozc_in_windows.md): for Windows
-
-Release Plan
-------------
-
-tl;dr. **There is no stable version.**
-
-As described in [About Branding](docs/about_branding.md) page, Google does
-not promise any official QA for OSS Mozc project.  Because of this,
-Mozc does not have a concept of *Stable Release*.  Instead we change version
-number every time when we introduce non-trivial change.  If you are
-interested in packaging Mozc source code, or developing your own products
-based on Mozc, feel free to pick up any version.  They should be equally
-stable (or equally unstable) in terms of no official QA process.
-
-[Release History](docs/release_history.md) page may have additional
-information and useful links about recent changes.
-
-License
--------
-
-All Mozc code written by Google is released under
-[The BSD 3-Clause License](http://opensource.org/licenses/BSD-3-Clause).
-For third party code under [src/third_party](src/third_party) directory,
-see each sub directory to find the copyright notice.  Note also that
-outside [src/third_party](src/third_party) following directories contain
-third party code.
-
-### [src/data/dictionary_oss/](src/data/dictionary_oss)
-Mixed.
-See [src/data/dictionary_oss/README.txt](src/data/dictionary_oss/README.txt)
-
-### [src/data/test/dictionary/](src/data/test/dictionary)
-The same as [src/data/dictionary_oss/](src/data/dictionary_oss).
-See [src/data/dictionary_oss/README.txt](src/data/dictionary_oss/README.txt)
-
-### [src/data/test/stress_test/](src/data/test/stress_test)
-Public Domain.  See the comment in
-[src/data/test/stress_test/sentences.txt](src/data/test/stress_test/sentences.txt)
+元の Mozc の説明は [UPSTREAM_README.md](UPSTREAM_README.md) に保存しています。

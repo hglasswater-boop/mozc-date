@@ -30,6 +30,10 @@
 #include "gui/about_dialog/about_dialog.h"
 
 #include <QtGui>
+#include <QDir>
+#include <QFile>
+#include <QProcess>
+#include <QTemporaryFile>
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -68,8 +72,9 @@ QString ReplaceString(const QString &str) {
           "https://support.google.com/gboard/community?hl=ja");
   Replace(replaced, "[ForumName]", QObject::tr("product forum"));
 #else  // GOOGLE_JAPANESE_INPUT_BUILD
-  Replace(replaced, "[ProductUrl]", "https://github.com/google/mozc");
-  Replace(replaced, "[ForumUrl]", "https://github.com/google/mozc/issues");
+  Replace(replaced, "[ProductUrl]",
+          "https://github.com/hglasswater-boop/mozkey-date-minimal");
+  Replace(replaced, "[ForumUrl]", "https://github.com/hglasswater-boop/mozkey-date-minimal/issues");
   Replace(replaced, "[ForumName]", QObject::tr("issues"));
 #endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
@@ -83,6 +88,28 @@ QString ReplaceString(const QString &str) {
 void SetLabelText(QLabel *label) {
   label->setText(ReplaceString(label->text()));
 }
+
+#ifdef _WIN32
+QString ExtractUpdaterScript() {
+  QFile resource(QStringLiteral(":/update-mozc-minimal.ps1"));
+  if (!resource.open(QIODevice::ReadOnly)) {
+    return {};
+  }
+  QTemporaryFile script(QDir::tempPath() +
+                        QStringLiteral("/mozc-date-updater-XXXXXX.ps1"));
+  if (!script.open()) {
+    return {};
+  }
+  const QByteArray content = resource.readAll();
+  if (script.write(content) != content.size()) {
+    return {};
+  }
+  script.setAutoRemove(false);
+  const QString path = script.fileName();
+  script.close();
+  return path;
+}
+#endif  // _WIN32
 }  // namespace
 
 AboutDialog::AboutDialog(QWidget *parent)
@@ -118,6 +145,101 @@ AboutDialog::AboutDialog(QWidget *parent)
 
   SetLabelText(label_terms);
   SetLabelText(label_credits);
+
+#ifdef _WIN32
+  const QString current_version =
+      QString::fromStdString(Version::GetMozcVersion()).trimmed();
+  updateButton->setEnabled(false);
+  updateStatusLabel->setText(
+      QString::fromUtf8("現在のバージョン: %1").arg(current_version));
+
+  QObject::connect(checkUpdateButton, &QPushButton::clicked, this,
+                   [this, current_version]() {
+    const QString script_path = ExtractUpdaterScript();
+    if (script_path.isEmpty()) {
+      updateStatusLabel->setText(
+          QString::fromUtf8("更新ツールを読み込めませんでした。"));
+      return;
+    }
+    checkUpdateButton->setEnabled(false);
+    updateButton->setEnabled(false);
+    updateStatusLabel->setText(QString::fromUtf8("更新を確認しています..."));
+
+    auto *process = new QProcess(this);
+    QObject::connect(process,
+                     static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+                         &QProcess::finished),
+                     this,
+                     [this, process, script_path, current_version](
+                         int exit_code, QProcess::ExitStatus exit_status) {
+      checkUpdateButton->setEnabled(true);
+      QFile::remove(script_path);
+      if (exit_status != QProcess::NormalExit || exit_code != 0) {
+        updateStatusLabel->setText(
+            QString::fromUtf8("更新確認に失敗しました。"));
+        updateStatusLabel->setToolTip(
+            QString::fromUtf8(process->readAllStandardError()).trimmed());
+      } else {
+        const QString latest =
+            QString::fromUtf8(process->readAllStandardOutput()).trimmed();
+        if (latest.isEmpty()) {
+          updateStatusLabel->setText(
+              QString::fromUtf8("最新バージョンを取得できませんでした。"));
+        } else if (Version::CompareVersion(current_version.toStdString(),
+                                            latest.toStdString())) {
+          updateStatusLabel->setText(
+              QString::fromUtf8("更新があります: %1 → %2")
+                  .arg(current_version, latest));
+          updateButton->setEnabled(true);
+        } else {
+          updateStatusLabel->setText(
+              QString::fromUtf8("最新版です（%1）").arg(current_version));
+        }
+      }
+      process->deleteLater();
+    });
+    QObject::connect(process, &QProcess::errorOccurred, this,
+                     [this, process, script_path](QProcess::ProcessError error) {
+      if (error != QProcess::FailedToStart) {
+        return;
+      }
+      QFile::remove(script_path);
+      checkUpdateButton->setEnabled(true);
+      updateStatusLabel->setText(
+          QString::fromUtf8("更新ツールを起動できませんでした。"));
+      updateStatusLabel->setToolTip(process->errorString());
+      process->deleteLater();
+    });
+    process->start(QStringLiteral("powershell.exe"),
+                   {QStringLiteral("-NoProfile"),
+                    QStringLiteral("-NonInteractive"),
+                    QStringLiteral("-ExecutionPolicy"),
+                    QStringLiteral("Bypass"), QStringLiteral("-File"),
+                    script_path, QStringLiteral("-Check")});
+  });
+
+  QObject::connect(updateButton, &QPushButton::clicked, this,
+                   [this, current_version]() {
+    const QString script_path = ExtractUpdaterScript();
+    if (script_path.isEmpty() ||
+        !QProcess::startDetached(
+            QStringLiteral("powershell.exe"),
+            {QStringLiteral("-NoProfile"),
+             QStringLiteral("-ExecutionPolicy"),
+             QStringLiteral("Bypass"), QStringLiteral("-File"), script_path,
+             QStringLiteral("-CurrentVersion"), current_version})) {
+      updateStatusLabel->setText(
+          QString::fromUtf8("更新ツールを起動できませんでした。"));
+      return;
+    }
+    checkUpdateButton->setEnabled(false);
+    updateButton->setEnabled(false);
+    updateStatusLabel->setText(
+        QString::fromUtf8("更新ツールを起動しました。画面の案内に従ってください。"));
+  });
+#else
+  updateWidget->hide();
+#endif  // _WIN32
 
   product_image_ =
       std::make_unique<QImage>(QLatin1String(":/product_logo.png"));

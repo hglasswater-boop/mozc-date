@@ -58,7 +58,7 @@ constexpr uint8_t kMaxSpellingTier = 60;
 constexpr size_t kPrefixScanLimit = 512;
 
 struct EnglishWordData {
-  absl::string_view word;
+  const char* word;
   uint8_t tier;
 };
 
@@ -217,9 +217,9 @@ bool HasExactGeneratedWord(absl::string_view key) {
   const auto it = std::lower_bound(
       begin, end, key,
       [](const EnglishWordData& entry, absl::string_view value) {
-        return entry.word < value;
+        return absl::string_view(entry.word) < value;
       });
-  return it != end && it->word == key;
+  return it != end && absl::string_view(it->word) == key;
 }
 
 bool HasExactWord(absl::string_view key) {
@@ -244,7 +244,7 @@ void AddRankedPrefixWords(absl::string_view prefix,
   auto it = std::lower_bound(
       begin, end, prefix,
       [](const EnglishWordData& entry, absl::string_view value) {
-        return entry.word < value;
+        return absl::string_view(entry.word) < value;
       });
 
   size_t scanned = 0;
@@ -320,16 +320,17 @@ void AddSpellingMatches(absl::string_view input,
   }
 
   for (const EnglishWordData& entry : kEnglishWordDictionary) {
+    const absl::string_view word(entry.word);
     if (entry.tier > kMaxSpellingTier ||
-        std::abs(static_cast<int>(entry.word.size()) -
+        std::abs(static_cast<int>(word.size()) -
                  static_cast<int>(input.size())) > max_distance) {
       continue;
     }
     const int distance =
-        BoundedDamerauLevenshtein(input, entry.word, max_distance);
+        BoundedDamerauLevenshtein(input, word, max_distance);
     if (distance > 0 && distance <= max_distance) {
       result->push_back(
-          {entry.word, CanonicalValue(entry.word), entry.tier, distance});
+          {word, CanonicalValue(word), entry.tier, distance});
     }
   }
 }
@@ -438,9 +439,10 @@ bool AddSpellingCandidates(absl::string_view raw_input,
 }
 
 bool IsPredictionRequest(RequestType request_type) {
-  return request_type == PREDICTION || request_type == SUGGESTION ||
-         request_type == PARTIAL_PREDICTION ||
-         request_type == PARTIAL_SUGGESTION;
+  return request_type == RequestType::PREDICTION ||
+         request_type == RequestType::SUGGESTION ||
+         request_type == RequestType::PARTIAL_PREDICTION ||
+         request_type == RequestType::PARTIAL_SUGGESTION;
 }
 
 }  // namespace
@@ -472,7 +474,7 @@ bool EnglishWordDictionaryRewriter::Rewrite(const ConversionRequest& request,
       modified |= AddPrefixCandidates(raw_input, lower_input, &segment);
     }
 
-    if (request.request_type() == ConversionRequest::CONVERSION &&
+    if (request.request_type() == RequestType::CONVERSION &&
         request.config().use_english_spelling_correction()) {
       modified |= AddSpellingCandidates(raw_input, lower_input, &segment);
     }

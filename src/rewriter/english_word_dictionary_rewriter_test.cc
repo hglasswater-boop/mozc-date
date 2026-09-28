@@ -87,7 +87,7 @@ TEST(EnglishWordDictionaryRewriterTest, CompletesCanonicalTechWord) {
   Segments segments;
   Segment* segment = AddInputSegment("gith", &segments);
 
-  const ConversionRequest request = BuildRequest("gith", SUGGESTION);
+  const ConversionRequest request = BuildRequest("gith", RequestType::SUGGESTION);
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
 
   const converter::Candidate* candidate = FindCandidate(*segment, "GitHub");
@@ -101,7 +101,7 @@ TEST(EnglishWordDictionaryRewriterTest, CompletesGeneralEnglishWord) {
   Segments segments;
   Segment* segment = AddInputSegment("prope", &segments);
 
-  const ConversionRequest request = BuildRequest("prope", SUGGESTION);
+  const ConversionRequest request = BuildRequest("prope", RequestType::SUGGESTION);
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
   EXPECT_NE(FindCandidate(*segment, "property"), nullptr);
 }
@@ -111,7 +111,7 @@ TEST(EnglishWordDictionaryRewriterTest, CompletesWordForExplicitPrediction) {
   Segments segments;
   Segment* segment = AddInputSegment("gith", &segments);
 
-  const ConversionRequest request = BuildRequest("gith", PREDICTION);
+  const ConversionRequest request = BuildRequest("gith", RequestType::PREDICTION);
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
   EXPECT_NE(FindCandidate(*segment, "GitHub"), nullptr);
 }
@@ -121,7 +121,7 @@ TEST(EnglishWordDictionaryRewriterTest, CorrectsTransposedSpelling) {
   Segments segments;
   Segment* segment = AddInputSegment("recieve", &segments);
 
-  const ConversionRequest request = BuildRequest("recieve", CONVERSION);
+  const ConversionRequest request = BuildRequest("recieve", RequestType::CONVERSION);
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
 
   const converter::Candidate* candidate = FindCandidate(*segment, "receive");
@@ -136,7 +136,7 @@ TEST(EnglishWordDictionaryRewriterTest, CorrectsSubstitutionSpelling) {
   Segments segments;
   Segment* segment = AddInputSegment("proparty", &segments);
 
-  const ConversionRequest request = BuildRequest("proparty", CONVERSION);
+  const ConversionRequest request = BuildRequest("proparty", RequestType::CONVERSION);
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
   EXPECT_NE(FindCandidate(*segment, "property"), nullptr);
 }
@@ -146,7 +146,7 @@ TEST(EnglishWordDictionaryRewriterTest, DoesNotRunSpellingScanForSuggestion) {
   Segments segments;
   Segment* segment = AddInputSegment("recieve", &segments);
 
-  const ConversionRequest request = BuildRequest("recieve", SUGGESTION);
+  const ConversionRequest request = BuildRequest("recieve", RequestType::SUGGESTION);
   rewriter.Rewrite(request, &segments);
   EXPECT_EQ(FindCandidate(*segment, "receive"), nullptr);
 }
@@ -157,7 +157,7 @@ TEST(EnglishWordDictionaryRewriterTest, DoesNotInjectCompletionIntoConversion) {
   Segment* segment = AddInputSegment("gith", &segments);
 
   const ConversionRequest request =
-      BuildRequest("gith", CONVERSION, true, false);
+      BuildRequest("gith", RequestType::CONVERSION, true, false);
   EXPECT_FALSE(rewriter.Rewrite(request, &segments));
   EXPECT_EQ(FindCandidate(*segment, "GitHub"), nullptr);
 }
@@ -168,7 +168,7 @@ TEST(EnglishWordDictionaryRewriterTest, MasterSwitchDisablesFeature) {
   Segment* segment = AddInputSegment("gith", &segments);
 
   const ConversionRequest request =
-      BuildRequest("gith", SUGGESTION, false, true);
+      BuildRequest("gith", RequestType::SUGGESTION, false, true);
   EXPECT_FALSE(rewriter.Rewrite(request, &segments));
   EXPECT_EQ(FindCandidate(*segment, "GitHub"), nullptr);
 }
@@ -177,12 +177,12 @@ TEST(EnglishWordDictionaryRewriterTest, CapabilityTracksSpellingConversion) {
   EnglishWordDictionaryRewriter rewriter;
 
   const ConversionRequest prediction_only =
-      BuildRequest("gith", SUGGESTION, true, false);
+      BuildRequest("gith", RequestType::SUGGESTION, true, false);
   EXPECT_EQ(rewriter.capability(prediction_only),
             RewriterInterface::PREDICTION | RewriterInterface::SUGGESTION);
 
   const ConversionRequest with_spelling =
-      BuildRequest("gith", SUGGESTION, true, true);
+      BuildRequest("gith", RequestType::SUGGESTION, true, true);
   EXPECT_EQ(rewriter.capability(with_spelling), RewriterInterface::ALL);
 }
 
@@ -191,7 +191,7 @@ TEST(EnglishWordDictionaryRewriterTest, PreservesUppercaseInputIntent) {
   Segments segments;
   Segment* segment = AddInputSegment("GITH", &segments);
 
-  const ConversionRequest request = BuildRequest("GITH", SUGGESTION);
+  const ConversionRequest request = BuildRequest("GITH", RequestType::SUGGESTION);
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
   EXPECT_NE(FindCandidate(*segment, "GITHUB"), nullptr);
 }
