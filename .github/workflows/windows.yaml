@@ -50,7 +50,7 @@ jobs:
         working-directory: .\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test --config release_build --platforms=//:windows-x86_64
+        run: bazelisk test //config:config_handler_test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test //rewriter:rewriter_test --config release_build --platforms=//:windows-x86_64
 
       - name: Build x64 MSI
         shell: cmd

@@ -1607,10 +1607,12 @@ mozc_cc_test(
     deps = [
         "rewriter",
         ":rewriter_interface",
+        "//base:clock_mock",
         "//converter:attribute",
         "//converter:segments",
         "//data_manager/testing:mock_data_manager",
         "//engine:modules",
+        "//protocol:config_cc_proto",
         "//request:conversion_request",
         "//testing:gunit_main",
         "//testing:mozctest",

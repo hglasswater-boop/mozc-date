@@ -44,6 +44,7 @@
 #include "absl/time/time.h"
 #include "base/clock.h"
 #include "base/clock_mock.h"
+#include "base/config_file_stream.h"
 #include "base/file/temp_dir.h"
 #include "base/file_util.h"
 #include "base/system_util.h"
@@ -300,6 +301,35 @@ TEST_F(ConfigHandlerTest, GetDefaultConfig) {
   EXPECT_TRUE(output.general_config().has_upload_usage_stats());
   EXPECT_TRUE(output.general_config().upload_usage_stats());
 #endif  // __ANDROID__ && CHANNEL_DEV
+}
+
+TEST_F(ConfigHandlerTest, ProductDefaultConfigInitializesDateFormats) {
+  const Config config = ConfigHandler::GetProductDefaultConfig();
+  EXPECT_TRUE(config.date_conversion_custom_formats_initialized());
+  ASSERT_EQ(config.date_conversion_custom_formats_size(), 3);
+  EXPECT_EQ(config.date_conversion_custom_formats(0), "{YEAR}/{MONTH}/{DATE}");
+  EXPECT_EQ(config.date_conversion_custom_format(), "{YEAR}/{MONTH}/{DATE}");
+}
+
+TEST_F(ConfigHandlerTest, DateConversionFormatsMigrateLegacySetting) {
+  TempDirectory temp_dir = testing::MakeTempDirectoryOrDie();
+  const std::string config_file =
+      FileUtil::JoinPath(temp_dir.path(), "legacy_date_config");
+  Config legacy_config;
+  legacy_config.set_date_conversion_custom_format("{YEAR}年{MONTH}月{DATE}日");
+  ConfigFileStream::AtomicUpdate(config_file,
+                                 legacy_config.SerializeAsString());
+
+  ConfigHandler::SetConfigFileNameForTesting(config_file);
+  ConfigHandler::Reload();
+
+  const Config migrated = ConfigHandler::GetCopiedConfig();
+  EXPECT_TRUE(migrated.date_conversion_custom_formats_initialized());
+  ASSERT_EQ(migrated.date_conversion_custom_formats_size(), 1);
+  EXPECT_EQ(migrated.date_conversion_custom_formats(0),
+            "{YEAR}年{MONTH}月{DATE}日");
+  EXPECT_EQ(migrated.date_conversion_custom_format(),
+            "{YEAR}年{MONTH}月{DATE}日");
 }
 
 TEST_F(ConfigHandlerTest, DefaultConfig) {

@@ -66,6 +66,37 @@ namespace {
 
 constexpr absl::string_view kFileNamePrefix = "user://config";
 
+void InitializeDateConversionFormats(Config* config) {
+  if (config == nullptr) {
+    return;
+  }
+
+  if (!config->date_conversion_custom_formats_initialized()) {
+    if (config->date_conversion_custom_formats_size() == 0) {
+      if (!config->date_conversion_custom_format().empty()) {
+        // Preserve the old single-format preference when loading a profile.
+        config->add_date_conversion_custom_formats(
+            config->date_conversion_custom_format());
+      } else {
+        config->add_date_conversion_custom_formats("{YEAR}/{MONTH}/{DATE}");
+        config->add_date_conversion_custom_formats("{YEAR}-{MONTH}-{DATE}");
+        config->add_date_conversion_custom_formats(
+            "{YEAR}年{MONTH_NOZERO}月{DATE_NOZERO}日");
+      }
+    }
+    config->set_date_conversion_custom_formats_initialized(true);
+  }
+
+  // Keep the retired single-format field useful to older clients. The ordered
+  // list is authoritative, including an intentionally empty list.
+  if (config->date_conversion_custom_formats_size() == 0) {
+    config->clear_date_conversion_custom_format();
+  } else {
+    config->set_date_conversion_custom_format(
+        config->date_conversion_custom_formats(0));
+  }
+}
+
 void AddCharacterFormRule(const absl::string_view group,
                           const Config::CharacterForm preedit_form,
                           const Config::CharacterForm conversion_form,
@@ -271,6 +302,7 @@ void ConfigHandlerImpl::Reload() {
 
   // we set default config when file is broken
   NormalizeConfig(input_config.get());
+  InitializeDateConversionFormats(input_config.get());
 
   SetConfigInternal(input_config);
 }
@@ -303,6 +335,12 @@ void ConfigHandler::SetConfig(Config config) {
 // static
 void ConfigHandler::GetDefaultConfig(Config* config) {
   *config = DefaultConfig();
+}
+
+Config ConfigHandler::GetProductDefaultConfig() {
+  Config config = DefaultConfig();
+  InitializeDateConversionFormats(&config);
+  return config;
 }
 
 std::shared_ptr<const Config> ConfigHandler::GetSharedDefaultConfig() {
