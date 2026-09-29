@@ -6,7 +6,7 @@
   #if defined(GOOGLE_JAPANESE_INPUT_BUILD)
     #define MOZC_RES_COMPANY_NAME "Google LLC"
   #elif defined(MOZC_BUILD)
-    #define MOZC_RES_COMPANY_NAME "Google LLC"
+    #define MOZC_RES_COMPANY_NAME "Mozc Date English Project"
   #endif
 #endif
 #ifndef MOZC_RES_FILE_DESCRIPTION
@@ -25,7 +25,7 @@
   #if defined(GOOGLE_JAPANESE_INPUT_BUILD)
     #define MOZC_RES_PRODUCT_NAME "Google 日本語入力"
   #elif defined(MOZC_BUILD)
-    #define MOZC_RES_PRODUCT_NAME "Mozc"
+    #define MOZC_RES_PRODUCT_NAME "Mozc Date English"
   #endif
 #endif
 #ifndef MOZC_RES_FILE_VERSION_NUMBER
@@ -88,4 +88,3 @@ BEGIN
         VALUE "Translation", 0x411, 1200
     END
 END
-

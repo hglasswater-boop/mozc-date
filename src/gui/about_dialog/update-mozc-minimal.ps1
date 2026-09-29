@@ -45,7 +45,7 @@ function Get-InstallerErrorMessage([int]$ExitCode) {
     1603 { return "Windows Installer で致命的なエラーが発生しました。" }
     1618 { return "別の Windows Installer 処理が実行中です。完了後にもう一度更新してください。" }
     1619 { return "ダウンロードした MSI を開けませんでした。" }
-    1638 { return "別バージョンの Mozc が残っているため更新できませんでした。MSI の UpgradeCode / ProductVersion を確認してください。" }
+    1638 { return "別バージョンの Mozc Date English が残っているため更新できませんでした。MSI の UpgradeCode / ProductVersion を確認してください。" }
     default { return "インストーラーが終了コード $ExitCode で失敗しました。" }
   }
 }

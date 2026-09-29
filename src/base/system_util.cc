@@ -201,7 +201,7 @@ std::string UserProfileDirectoryImpl::GetUserProfileDirectory() const {
       LOG(ERROR) << s;
     }
 #endif  // GOOGLE_JAPANESE_INPUT_BUILD
-    return FileUtil::JoinPath(dir, kProductNameInEnglish);
+    return FileUtil::JoinPath(dir, kProductUserDataDirectoryName);
 
 #elif defined(TARGET_OS_OSX) && TARGET_OS_OSX
     std::string dir = MacUtil::GetApplicationSupportDirectory();
@@ -328,9 +328,10 @@ std::string SystemUtil::GetServerDirectory() {
 #if defined(GOOGLE_JAPANESE_INPUT_BUILD)
   return FileUtil::JoinPath(
       FileUtil::JoinPath(program_files.value_or(""), kCompanyNameInEnglish),
-      kProductNameInEnglish);
+      kProductInstallDirectoryName);
 #else   // GOOGLE_JAPANESE_INPUT_BUILD
-  return FileUtil::JoinPath(program_files.value_or(""), kProductNameInEnglish);
+  return FileUtil::JoinPath(program_files.value_or(""),
+                            kProductInstallDirectoryName);
 #endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
 #elif defined(__APPLE__)

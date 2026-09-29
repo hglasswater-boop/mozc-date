@@ -35,7 +35,7 @@ namespace mozc {
 inline constexpr char kProductNameInEnglish[] = "Google Japanese Input";
 #define kProductPrefix "GoogleJapaneseInput"
 #else  // GOOGLE_JAPANESE_INPUT_BUILD
-inline constexpr char kProductNameInEnglish[] = "Mozc";
+inline constexpr char kProductNameInEnglish[] = "Mozc Date English";
 #define kProductPrefix "Mozc"
 #endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
@@ -53,6 +53,10 @@ inline constexpr int kIMEUIwndClassNameLimitInTchars = 16;
 inline constexpr wchar_t kDefaultKeyboardLayout[] = L"00000411";
 
 #ifdef GOOGLE_JAPANESE_INPUT_BUILD
+inline constexpr char kProductUserDataDirectoryName[] =
+    "Google Japanese Input";
+inline constexpr char kProductInstallDirectoryName[] =
+    "Google Japanese Input";
 inline constexpr char kCompanyNameInEnglish[] = "Google";
 // Use Local prefix so that modules running under AppContainer can access.
 inline constexpr char kEventPathPrefix[] = "Local\\GoogleJapaneseInput.event.";
@@ -98,6 +102,9 @@ inline constexpr wchar_t kMozcRegKey[] =
 inline constexpr wchar_t kElevatedProcessDisabledKey[] =
     L"Software\\Policies\\Google\\Google Japanese Input\\Preferences";
 #else   // !GOOGLE_JAPANESE_INPUT_BUILD
+// Keep the OSS data and installation paths stable across branded releases.
+inline constexpr char kProductUserDataDirectoryName[] = "Mozc";
+inline constexpr char kProductInstallDirectoryName[] = "Mozc";
 inline constexpr char kCompanyNameInEnglish[] = "Mozc Project";
 // Use Local prefix so that modules running under AppContainer can access.
 inline constexpr char kEventPathPrefix[] = "Local\\Mozc.event.";
@@ -123,7 +130,8 @@ inline constexpr wchar_t kInfolistWindowClassName[] = L"MozcInfolistWindow";
 inline constexpr wchar_t kIMEUIWndClassName[] = L"MozcUIWindow";
 inline constexpr char kIPCPrefix[] = "\\\\.\\pipe\\mozc.";
 inline constexpr wchar_t kCandidateUIDescription[] = L"MozcCandidateUI";
-inline constexpr wchar_t kConfigurationDisplayname[] = L"Mozc Configuration";
+inline constexpr wchar_t kConfigurationDisplayname[] =
+    L"Mozc Date English Configuration";
 inline constexpr wchar_t kMozcRegKey[] = L"Software\\Mozc Project\\Mozc";
 inline constexpr wchar_t kElevatedProcessDisabledKey[] =
     L"Software\\Policies\\Mozc Project\\Mozc\\Preferences";
