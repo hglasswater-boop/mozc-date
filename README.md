@@ -21,9 +21,10 @@ Windows x64 の MSI は [Releases](https://github.com/hglasswater-boop/mozkey-da
 確認します。更新可能なときは「更新する」から x64 MSI をダウンロードし、SHA-256 を
 照合してから Windows Installer を起動します。更新時に管理者権限の確認が表示されます。
 
-リリースタグは `v` に続けてアプリの Mozc バージョンを付けます
-（例: `v3.34.6239.100`）。タグを push すると Windows x64 CI が MSI、チェックサム、
-更新スクリプトを Release に公開します。次のリリースでは `src/version.bzl` のビルド番号を
-増やしてください。
+製品版数は Mozc の版数から独立させています。独自版数の開始タグは `v4.0.0.0` です。
+既存の `v3.x` から MSI で上書き更新できるように `4` から始めます。以後は3番目の数字を
+増やし、例として次のリリースは `v4.0.1.0` にします。4番目の数字は Windows Installer
+が更新判定に使わないため、常に `0` にしてください。タグを push すると Windows x64 CI が
+MSI 内部の版数を照合してから、MSI、チェックサム、更新スクリプトを Release に公開します。
 
 元の Mozc の説明は [UPSTREAM_README.md](UPSTREAM_README.md) に保存しています。

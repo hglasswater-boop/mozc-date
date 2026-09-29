@@ -66,17 +66,10 @@ QString ReplaceString(const QString &str) {
   QString replaced(str);
   Replace(replaced, "[ProductName]", GuiUtil::ProductName());
 
-#ifdef GOOGLE_JAPANESE_INPUT_BUILD
-  Replace(replaced, "[ProductUrl]", "https://www.google.co.jp/ime/");
-  Replace(replaced, "[ForumUrl]",
-          "https://support.google.com/gboard/community?hl=ja");
-  Replace(replaced, "[ForumName]", QObject::tr("product forum"));
-#else  // GOOGLE_JAPANESE_INPUT_BUILD
   Replace(replaced, "[ProductUrl]",
           "https://github.com/hglasswater-boop/mozkey-date-minimal");
   Replace(replaced, "[ForumUrl]", "https://github.com/hglasswater-boop/mozkey-date-minimal/issues");
   Replace(replaced, "[ForumName]", QObject::tr("issues"));
-#endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
   const std::string credit_filepath =
       FileUtil::JoinPath(SystemUtil::GetDocumentDirectory(), "credits_en.html");

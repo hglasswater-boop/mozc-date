@@ -27,18 +27,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-MAJOR = 3
+MAJOR = 4
 
-MINOR = 34
+MINOR = 0
 
-# BUILD number used for the OSS version.
-BUILD_OSS = 6239
+# Keep the field required by Mozc's version generator; this fork starts its own
+# product build sequence at zero.
+BUILD_OSS = 0
 
-# Number to be increased. This value may be replaced by other tools.
+# Default product build number; release builds set this from their Git tag.
 BUILD = BUILD_OSS
 
 # Represent the platform and release channel.
-REVISION = 104
+REVISION = 0
 
 # LINT.IfChange
 DEFAULT_BUILD_LABEL_MACOS = "%d.%d.%d.%d" % (MAJOR, MINOR, BUILD, REVISION + 1)

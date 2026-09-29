@@ -24,14 +24,36 @@ jobs:
           submodules: false
           persist-credentials: false
 
-      - name: Set Mozc version from release tag
+      - name: Set product version from release tag
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+\.\d+)$') {
-            throw "Unexpected release tag: $env:GITHUB_REF_NAME"
+          if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+\.0)$') {
+            throw "Release tags must use four numeric components and end in .0 for Windows Installer compatibility: $env:GITHUB_REF_NAME"
           }
           Add-Content -Path $env:GITHUB_ENV -Value "MOZC_VERSION=$($Matches[1])" -Encoding utf8
+
+      - name: Check product version ordering
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $previousTag = gh api "repos/$($env:GITHUB_REPOSITORY)/releases/latest" --jq .tag_name
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not read the latest published release tag."
+          }
+          $previousVersionText = $previousTag.Trim() -replace '^v', ''
+          $previousVersion = [version]$previousVersionText
+          $nextVersion = [version]$env:MOZC_VERSION
+          if ($nextVersion -le $previousVersion) {
+            throw "Product version $nextVersion must be newer than the latest release $previousVersion."
+          }
+          $previousMsiVersion = [version]("$($previousVersion.Major).$($previousVersion.Minor).$($previousVersion.Build)")
+          $nextMsiVersion = [version]("$($nextVersion.Major).$($nextVersion.Minor).$($nextVersion.Build)")
+          if ($nextMsiVersion -le $previousMsiVersion) {
+            throw "Windows Installer uses only the first three version fields; $nextVersion must increase beyond $previousVersion in those fields."
+          }
 
       - name: Restore dependency cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
@@ -68,7 +90,7 @@ jobs:
         working-directory: .\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //config:config_handler_test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test //rewriter:rewriter_test --action_env=MOZC_VERSION=%MOZC_VERSION% --config release_build --platforms=//:windows-x86_64
+        run: bazelisk test //base:version_test //config:config_handler_test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test //rewriter:rewriter_test --action_env=MOZC_VERSION=%MOZC_VERSION% --config release_build --platforms=//:windows-x86_64
 
       - name: Build x64 MSI
         shell: cmd
@@ -90,7 +112,7 @@ jobs:
         shell: pwsh
         run: |
           $expectedVersion = $env:MOZC_VERSION
-          if ($expectedVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+          if ($expectedVersion -notmatch '^\d+\.\d+\.\d+\.0$') {
             throw "Unexpected release version: $expectedVersion"
           }
           $installer = New-Object -ComObject WindowsInstaller.Installer
