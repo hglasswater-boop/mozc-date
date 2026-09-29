@@ -68,14 +68,14 @@ jobs:
         working-directory: .\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //config:config_handler_test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test //rewriter:rewriter_test --action_env=MOZC_VERSION --config release_build --platforms=//:windows-x86_64
+        run: bazelisk test //config:config_handler_test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test //rewriter:rewriter_test --action_env=MOZC_VERSION=%MOZC_VERSION% --config release_build --platforms=//:windows-x86_64
 
       - name: Build x64 MSI
         shell: cmd
         working-directory: .\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk build package --action_env=MOZC_VERSION --config release_build --platforms=//:windows-x86_64
+        run: bazelisk build package --action_env=MOZC_VERSION=%MOZC_VERSION% --config release_build --platforms=//:windows-x86_64
 
       - name: Prepare release assets
         shell: pwsh
@@ -84,6 +84,38 @@ jobs:
           Copy-Item -LiteralPath $msi -Destination 'Mozc64_x64.msi'
           $hash = (Get-FileHash -LiteralPath 'Mozc64_x64.msi' -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -LiteralPath 'Mozc64_x64.msi.sha256' -Value "$hash  Mozc64_x64.msi" -Encoding ascii
+
+      - name: Verify release MSI metadata
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $expectedVersion = $env:MOZC_VERSION
+          if ($expectedVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+            throw "Unexpected release version: $expectedVersion"
+          }
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $database = $installer.OpenDatabase((Resolve-Path 'Mozc64_x64.msi').Path, 0)
+          function Get-MsiProperty([object]$database, [string]$name) {
+            $view = $database.OpenView("SELECT ``Value`` FROM ``Property`` WHERE ``Property``='$name'")
+            $null = $view.Execute()
+            $row = $view.Fetch()
+            if ($null -eq $row) { return $null }
+            return $row.StringData(1)
+          }
+          $productVersion = Get-MsiProperty $database 'ProductVersion'
+          $productName = Get-MsiProperty $database 'ProductName'
+          $manufacturer = Get-MsiProperty $database 'Manufacturer'
+          $publisher = $database.SummaryInformation(0).Property(4)
+          if ($productVersion -ne $expectedVersion) {
+            throw "MSI ProductVersion '$productVersion' does not match tag version '$expectedVersion'"
+          }
+          if ($productName -ne 'Mozc Date English') {
+            throw "Unexpected MSI ProductName: '$productName'"
+          }
+          if ($manufacturer -ne 'Mozc Date English Project' -or $publisher -ne 'Mozc Date English Project') {
+            throw "Unexpected MSI publisher: Property='$manufacturer', Summary='$publisher'"
+          }
+          Write-Output "Verified MSI ProductVersion=$productVersion, ProductName=$productName, Publisher=$publisher"
 
       - name: Upload x64 MSI
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
