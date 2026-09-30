@@ -30,7 +30,8 @@
 # Build rules for the Windows installer.
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
-load("//:build_defs.bzl", "mozc_py_binary")
+load("@rules_python//python:defs.bzl", "py_test")
+load("//:build_defs.bzl", "mozc_py_binary", "mozc_py_library")
 load("//:config.bzl", "BRANDING")
 
 package(default_visibility = ["//visibility:private"])
@@ -49,8 +50,27 @@ mozc_py_binary(
     test_lib = False,
     deps = [
         "//build_tools:mozc_version_lib",
+        "//build_tools:product_version_lib",
         "//build_tools:vs_util",
     ],
+)
+
+mozc_py_library(
+    name = "build_installer_lib",
+    srcs = ["build_installer.py"],
+    deps = [
+        "//build_tools:mozc_version_lib",
+        "//build_tools:product_version_lib",
+        "//build_tools:vs_util",
+    ],
+)
+
+py_test(
+    name = "build_installer_test",
+    size = "small",
+    srcs = ["build_installer_test.py"],
+    data = ["installer_oss_64bit.wxs"],
+    deps = [":build_installer_lib"],
 )
 
 exports_files([
@@ -95,7 +115,7 @@ genrule(
         "//data/installer:credits_en.html",
         "@qt_win//:bin/Qt6Core.dll",
         "@wix//:wix.exe",
-    ] + select({
+    ] + (["//base:product_version_json"] if BRANDING == "Mozc" else []) + select({
         ":build_arm64_binaries": [
             "//win32/tip:mozc_tip64arm",
             "//win32/tip:mozc_tip64x",
@@ -122,7 +142,7 @@ genrule(
         "--wix_path=$(location @wix//:wix.exe)",
         "--branding=" + BRANDING,
         "--vs_install_dir=\"$$BAZEL_VC\"",
-    ]) + select({
+    ]) + (" --product_version_file=$(location //base:product_version_json)" if BRANDING == "Mozc" else "") + select({
         ":build_arm64_binaries": " " + " ".join([
             "--mozc_tip64arm=$(location //win32/tip:mozc_tip64arm)",
             "--mozc_tip64x=$(location //win32/tip:mozc_tip64x)",

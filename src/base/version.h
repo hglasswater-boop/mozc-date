@@ -44,6 +44,11 @@ class Version {
   // Get current mozc version (former called MOZC_VERSION)
   static std::string GetMozcVersion();
 
+  // Product release version (major.minor.patch), independent of the engine.
+  static std::string GetProductVersion();
+  // Windows Installer version with the reserved product major offset.
+  static std::string GetMsiProductVersion();
+
 #ifdef _WIN32
   // Get current mozc version (former called MOZC_VERSION) by std::wstring
   static std::wstring GetMozcVersionW();

@@ -44,6 +44,7 @@ import tempfile
 from typing import Union
 
 from build_tools import mozc_version
+from build_tools import product_version
 from build_tools import vs_util
 
 
@@ -70,10 +71,21 @@ class ForwarderInfo:
 
   branding: str
   version: mozc_version.MozcVersion
+  product: product_version.ProductVersion | None = None
 
   def get_version_string(self, separator='.') -> str:
+    if self.branding == 'Mozc':
+      if self.product is None:
+        raise ValueError('Mozc forwarder requires a product version manifest')
+      return (self.product.msi_version + '.0').replace('.', separator)
     components = ['@MAJOR@', '@MINOR@', '@BUILD@', '@REVISION@']
     return self.version.GetVersionInFormat(separator.join(components))
+
+  @property
+  def product_version_string(self) -> str:
+    if self.branding == 'Mozc' and self.product is not None:
+      return self.product.product_version
+    return self.get_version_string('.')
 
   @property
   def forwarder_dll_name(self) -> str:
@@ -106,7 +118,7 @@ class ForwarderInfo:
   @property
   def product_name(self) -> str:
     return {
-        'Mozc': 'Mozc',
+        'Mozc': 'Mozc Date English',
         'GoogleJapaneseInput': 'Google 日本語入力',
     }[self.branding]
 
@@ -117,8 +129,8 @@ class ForwarderInfo:
     return _get_def_file_content(self.arm64_impl_dll_name)
 
   def get_rc_file_content(self) -> str:
-    comma_separated_versoin = self.get_version_string(',')
-    dot_separated_versoin = self.get_version_string('.')
+    comma_separated_version = self.get_version_string(',')
+    dot_separated_version = self.get_version_string('.')
     file_description = self.file_description
 
     original_file_name = self.forwarder_dll_name
@@ -131,8 +143,8 @@ class ForwarderInfo:
         'LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT',
         '',
         'VS_VERSION_INFO VERSIONINFO',
-        f'FILEVERSION {comma_separated_versoin}',
-        f'PRODUCTVERSION {comma_separated_versoin}',
+        f'FILEVERSION {comma_separated_version}',
+        f'PRODUCTVERSION {comma_separated_version}',
         (
             'FILEFLAGSMASK'
             ' VS_FF_DEBUG | VS_FF_PRERELEASE | VS_FF_PATCHED'
@@ -149,12 +161,12 @@ class ForwarderInfo:
         '        BEGIN',
         f'            VALUE "CompanyName", "{product_copyright}"',
         f'            VALUE "FileDescription", "{file_description}"',
-        f'            VALUE "FileVersion", "{dot_separated_versoin}"',
+        f'            VALUE "FileVersion", "{dot_separated_version}"',
         f'            VALUE "InternalName", "{internal_name}"',
         f'            VALUE "LegalCopyright", "{product_copyright}"',
         f'            VALUE "OriginalFilename", "{original_file_name}"',
         f'            VALUE "ProductName", "{product_name}"',
-        f'            VALUE "ProductVersion", "{dot_separated_versoin}"',
+        f'            VALUE "ProductVersion", "{self.product_version_string}"',
         '        END',
         '    END',
         '    BLOCK "VarFileInfo"',
@@ -202,7 +214,11 @@ def build_on_windows(args: argparse.Namespace) -> None:
     FileNotFoundError: when any required file is not found.
   """
   version = mozc_version.MozcVersion(args.version_file)
-  info = ForwarderInfo(branding=args.branding, version=version)
+  product = (
+      product_version.read_manifest(pathlib.Path(args.product_version_file))
+      if args.branding == 'Mozc' else None
+  )
+  info = ForwarderInfo(branding=args.branding, version=version, product=product)
 
   # Currently only x64 is supported as the host architecture.
   # TODO: https://github.com/google/mozc/issues/1296 - Support ARM64 host.
@@ -334,6 +350,10 @@ def parse_args() -> argparse.Namespace:
       help='the path to version.txt',
   )
   parser.add_argument(
+      '--product_version_file',
+      help='the path to the product version JSON manifest',
+  )
+  parser.add_argument(
       '--branding',
       dest='branding',
       default='Mozc',
@@ -346,7 +366,10 @@ def parse_args() -> argparse.Namespace:
       help='the path of the generated forwarder DLL file',
   )
 
-  return parser.parse_args()
+  args = parser.parse_args()
+  if args.branding == 'Mozc' and not args.product_version_file:
+    parser.error('--product_version_file is required for Mozc branding')
+  return args
 
 
 def main():

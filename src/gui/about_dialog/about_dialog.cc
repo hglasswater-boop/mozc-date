@@ -32,6 +32,9 @@
 #include <QtGui>
 #include <QDir>
 #include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QProcess>
 #include <QTemporaryFile>
 #include <algorithm>
@@ -115,7 +118,7 @@ AboutDialog::AboutDialog(QWidget *parent)
   window_palette.setColor(QPalette::WindowText, QColor(0, 0, 0));
   setPalette(window_palette);
   setAutoFillBackground(true);
-  std::string version_info = "(" + Version::GetMozcVersion() + ")";
+  std::string version_info = "(v" + Version::GetProductVersion() + ")";
   version_label->setText(QLatin1String(version_info.c_str()));
   GuiUtil::ReplaceWidgetLabels(this);
 
@@ -141,13 +144,14 @@ AboutDialog::AboutDialog(QWidget *parent)
 
 #ifdef _WIN32
   const QString current_version =
-      QString::fromStdString(Version::GetMozcVersion()).trimmed();
+      QString::fromStdString(Version::GetProductVersion()).trimmed();
+  const std::string current_msi_version = Version::GetMsiProductVersion();
   updateButton->setEnabled(false);
   updateStatusLabel->setText(
       QString::fromUtf8("現在のバージョン: %1").arg(current_version));
 
   QObject::connect(checkUpdateButton, &QPushButton::clicked, this,
-                   [this, current_version]() {
+                   [this, current_version, current_msi_version]() {
     const QString script_path = ExtractUpdaterScript();
     if (script_path.isEmpty()) {
       updateStatusLabel->setText(
@@ -163,7 +167,8 @@ AboutDialog::AboutDialog(QWidget *parent)
                      static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
                          &QProcess::finished),
                      this,
-                     [this, process, script_path, current_version](
+                     [this, process, script_path, current_version,
+                      current_msi_version](
                          int exit_code, QProcess::ExitStatus exit_status) {
       checkUpdateButton->setEnabled(true);
       QFile::remove(script_path);
@@ -173,13 +178,19 @@ AboutDialog::AboutDialog(QWidget *parent)
         updateStatusLabel->setToolTip(
             QString::fromUtf8(process->readAllStandardError()).trimmed());
       } else {
+        QJsonParseError parse_error;
+        const QJsonDocument release = QJsonDocument::fromJson(
+            process->readAllStandardOutput(), &parse_error);
         const QString latest =
-            QString::fromUtf8(process->readAllStandardOutput()).trimmed();
-        if (latest.isEmpty()) {
+            release.object().value(QStringLiteral("product_version")).toString();
+        const QString latest_msi =
+            release.object().value(QStringLiteral("msi_version")).toString();
+        if (parse_error.error != QJsonParseError::NoError ||
+            latest.isEmpty() || latest_msi.isEmpty()) {
           updateStatusLabel->setText(
               QString::fromUtf8("最新バージョンを取得できませんでした。"));
-        } else if (Version::CompareVersion(current_version.toStdString(),
-                                            latest.toStdString())) {
+        } else if (Version::CompareVersion(current_msi_version,
+                                            latest_msi.toStdString())) {
           updateStatusLabel->setText(
               QString::fromUtf8("更新があります: %1 → %2")
                   .arg(current_version, latest));

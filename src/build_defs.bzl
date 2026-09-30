@@ -180,13 +180,17 @@ def _mozc_gen_win32_resource_file(
     args = []
     if utf8:
         args.append("--utf8")
+    args.append("--branding=" + BRANDING)
+    resource_srcs = {
+        "--main": [src],
+        "--template": ["//build_tools:mozc_win32_resource_template.rc"],
+        "--version_file": ["//base:mozc_version_txt"],
+    }
+    if BRANDING == "Mozc":
+        resource_srcs["--product_version_file"] = ["//base:product_version_json"]
     mozc_run_build_tool(
         name = name,
-        srcs = {
-            "--main": [src],
-            "--template": ["//build_tools:mozc_win32_resource_template.rc"],
-            "--version_file": ["//base:mozc_version_txt"],
-        },
+        srcs = resource_srcs,
         outs = {
             "--output": name,
         },
