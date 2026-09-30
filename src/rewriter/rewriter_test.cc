@@ -211,6 +211,42 @@ TEST_F(RewriterTest, DateFormatListFiltersUnconfiguredDateCandidates) {
   EXPECT_TRUE(HasCandidateValue(*seg, "keep-me"));
 }
 
+TEST_F(RewriterTest, ExplicitDateInputSurvivesConfiguredFormatFiltering) {
+  const ScopedClockMock clock(ParseTimeOrDie("2026-09-30T12:00:00Z"));
+  config::Config config;
+  config.set_use_date_conversion(true);
+  config.set_date_conversion_custom_formats_initialized(true);
+  config.add_date_conversion_custom_formats(
+      "{YEAR}/{MONTH_NOZERO}/{DATE_NOZERO}");
+  const ConversionRequest request =
+      ConversionRequestBuilder().SetConfig(config).Build();
+
+  Segments segments;
+  Segment* seg = segments.push_back_segment();
+  seg->set_key("9/8");
+
+  converter::Candidate* raw = seg->add_candidate();
+  raw->key = raw->content_key = "9/8";
+  raw->value = raw->content_value = "9/8";
+  raw->description = "日付";
+
+  converter::Candidate* canonical = seg->add_candidate();
+  canonical->key = canonical->content_key = "9/8";
+  canonical->value = canonical->content_value = "2026/09/08";
+  canonical->description = "日付";
+
+  converter::Candidate* configured = seg->add_candidate();
+  configured->key = configured->content_key = "9/8";
+  configured->value = configured->content_value =
+      "{YEAR}/{MONTH_NOZERO}/{DATE_NOZERO}";
+  configured->description = "日付";
+
+  EXPECT_TRUE(GetRewriter()->Rewrite(request, &segments));
+  EXPECT_TRUE(HasCandidateValue(*seg, "9/8"));
+  EXPECT_TRUE(HasCandidateValue(*seg, "2026/9/8"));
+  EXPECT_FALSE(HasCandidateValue(*seg, "2026/09/08"));
+}
+
 TEST_F(RewriterTest, EmptyInitializedDateFormatListRemovesDateCandidates) {
   config::Config config;
   config.set_use_date_conversion(true);
