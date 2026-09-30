@@ -41,6 +41,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "composer/composer.h"
 #include "converter/attribute.h"
 #include "converter/candidate.h"
 #include "converter/segments.h"
@@ -55,7 +56,6 @@ constexpr size_t kMaxEnglishWordLength = 40;
 constexpr size_t kMaxPrefixCandidates = 8;
 constexpr size_t kMaxSpellingCandidates = 5;
 constexpr uint8_t kMaxSpellingTier = 60;
-constexpr size_t kPrefixScanLimit = 512;
 
 struct EnglishWordData {
   const char* word;
@@ -231,10 +231,22 @@ bool HasExactWord(absl::string_view key) {
   return HasExactGeneratedWord(key);
 }
 
+bool ShouldIncludePrefixWord(absl::string_view prefix, absl::string_view word) {
+  if (word == prefix) {
+    return false;
+  }
+  if (prefix.find('\'') == absl::string_view::npos &&
+      absl::EndsWith(word, "'s")) {
+    return false;
+  }
+  return true;
+}
+
 void AddRankedPrefixWords(absl::string_view prefix,
                           std::vector<RankedWord>* result) {
   for (const ManualWordEntry& entry : kManualWords) {
-    if (entry.key != prefix && absl::StartsWith(entry.key, prefix)) {
+    if (absl::StartsWith(entry.key, prefix) &&
+        ShouldIncludePrefixWord(prefix, entry.key)) {
       result->push_back({entry.key, entry.value, entry.tier, 0});
     }
   }
@@ -247,15 +259,14 @@ void AddRankedPrefixWords(absl::string_view prefix,
         return absl::string_view(entry.word) < value;
       });
 
-  size_t scanned = 0;
-  for (; it != end && absl::StartsWith(it->word, prefix) &&
-         scanned < kPrefixScanLimit;
-       ++it, ++scanned) {
-    if (it->word == prefix) {
+  // The matching range is contiguous because the generated dictionary is
+  // lexicographically sorted. Scan the entire prefix range, then rank globally.
+  for (; it != end && absl::StartsWith(it->word, prefix); ++it) {
+    const absl::string_view word(it->word);
+    if (!ShouldIncludePrefixWord(prefix, word)) {
       continue;
     }
-    result->push_back(
-        {it->word, CanonicalValue(it->word), it->tier, 0});
+    result->push_back({word, CanonicalValue(word), it->tier, 0});
   }
 }
 
@@ -449,7 +460,10 @@ bool IsPredictionRequest(RequestType request_type) {
 
 int EnglishWordDictionaryRewriter::capability(
     const ConversionRequest& request) const {
-  int capability = RewriterInterface::PREDICTION | RewriterInterface::SUGGESTION;
+  int capability = RewriterInterface::NOT_AVAILABLE;
+  if (request.config().use_english_word_dictionary()) {
+    capability |= RewriterInterface::PREDICTION | RewriterInterface::SUGGESTION;
+  }
   if (request.config().use_english_spelling_correction()) {
     capability |= RewriterInterface::CONVERSION;
   }
@@ -458,24 +472,36 @@ int EnglishWordDictionaryRewriter::capability(
 
 bool EnglishWordDictionaryRewriter::Rewrite(const ConversionRequest& request,
                                             Segments* segments) const {
-  if (!request.config().use_english_word_dictionary()) {
+  const bool completion_enabled =
+      request.config().use_english_word_dictionary();
+  const bool spelling_enabled =
+      request.config().use_english_spelling_correction();
+  if (!completion_enabled && !spelling_enabled) {
     return false;
+  }
+
+  std::string composer_raw_input;
+  if (segments->conversion_segments_size() == 1) {
+    composer_raw_input = request.composer().GetRawString();
   }
 
   bool modified = false;
   for (Segment& segment : segments->conversion_segments()) {
-    const absl::string_view raw_input = segment.key();
+    const absl::string_view raw_input =
+        IsAsciiWordInput(composer_raw_input)
+            ? absl::string_view(composer_raw_input)
+            : absl::string_view(segment.key());
     if (!IsAsciiWordInput(raw_input)) {
       continue;
     }
     const std::string lower_input = LowerAscii(raw_input);
 
-    if (IsPredictionRequest(request.request_type())) {
+    if (completion_enabled && IsPredictionRequest(request.request_type())) {
       modified |= AddPrefixCandidates(raw_input, lower_input, &segment);
     }
 
-    if (request.request_type() == RequestType::CONVERSION &&
-        request.config().use_english_spelling_correction()) {
+    if (spelling_enabled &&
+        request.request_type() == RequestType::CONVERSION) {
       modified |= AddSpellingCandidates(raw_input, lower_input, &segment);
     }
   }
