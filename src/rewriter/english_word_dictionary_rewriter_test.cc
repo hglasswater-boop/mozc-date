@@ -80,6 +80,18 @@ ConversionRequest BuildRequest(absl::string_view key, RequestType type,
       .Build();
 }
 
+void InsertASCIISequence(absl::string_view text, composer::Composer* composer) {
+  for (const char c : text) {
+    commands::KeyEvent key;
+    key.set_key_code(c);
+    composer->InsertCharacterKeyEvent(key);
+  }
+}
+
+bool HasPossessiveSuffix(absl::string_view value) {
+  return value.size() >= 2 && value.substr(value.size() - 2) == "'s";
+}
+
 }  // namespace
 
 TEST(EnglishWordDictionaryRewriterTest, CompletesCanonicalTechWord) {
@@ -106,12 +118,75 @@ TEST(EnglishWordDictionaryRewriterTest, CompletesGeneralEnglishWord) {
   EXPECT_NE(FindCandidate(*segment, "property"), nullptr);
 }
 
+TEST(EnglishWordDictionaryRewriterTest, RanksEntirePrefixRange) {
+  EnglishWordDictionaryRewriter rewriter;
+  struct TestCase {
+    absl::string_view prefix;
+    absl::string_view expected;
+  };
+  constexpr TestCase kCases[] = {
+      {"pre", "press"},
+      {"dis", "dish"},
+      {"sta", "stay"},
+  };
+
+  for (const TestCase& test_case : kCases) {
+    SCOPED_TRACE(test_case.prefix);
+    Segments segments;
+    Segment* segment = AddInputSegment(test_case.prefix, &segments);
+    const ConversionRequest request =
+        BuildRequest(test_case.prefix, RequestType::SUGGESTION);
+    EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+    EXPECT_NE(FindCandidate(*segment, test_case.expected), nullptr);
+  }
+}
+
+TEST(EnglishWordDictionaryRewriterTest,
+     DoesNotSuggestPossessiveWithoutApostrophe) {
+  EnglishWordDictionaryRewriter rewriter;
+  Segments segments;
+  Segment* segment = AddInputSegment("co", &segments);
+
+  const ConversionRequest request = BuildRequest("co", RequestType::SUGGESTION);
+  EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+  for (const converter::Candidate* candidate : segment->candidates()) {
+    ASSERT_NE(candidate, nullptr);
+    EXPECT_FALSE(HasPossessiveSuffix(candidate->value)) << candidate->value;
+  }
+}
+
 TEST(EnglishWordDictionaryRewriterTest, CompletesWordForExplicitPrediction) {
   EnglishWordDictionaryRewriter rewriter;
   Segments segments;
   Segment* segment = AddInputSegment("gith", &segments);
 
   const ConversionRequest request = BuildRequest("gith", RequestType::PREDICTION);
+  EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+  EXPECT_NE(FindCandidate(*segment, "GitHub"), nullptr);
+}
+
+TEST(EnglishWordDictionaryRewriterTest, UsesComposerRawInputForRomajiTyping) {
+  EnglishWordDictionaryRewriter rewriter;
+  composer::Composer composer;
+  InsertASCIISequence("gith", &composer);
+
+  const std::string composition = composer.GetStringForPreedit();
+  EXPECT_NE(composition, "gith");
+
+  Segments segments;
+  Segment* segment = AddInputSegment(composition, &segments);
+
+  config::Config config;
+  config::ConfigHandler::GetDefaultConfig(&config);
+  config.set_use_english_word_dictionary(true);
+  config.set_use_english_spelling_correction(true);
+  const ConversionRequest request =
+      ConversionRequestBuilder()
+          .SetComposer(composer)
+          .SetConfig(config)
+          .SetRequestType(RequestType::SUGGESTION)
+          .Build();
+
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
   EXPECT_NE(FindCandidate(*segment, "GitHub"), nullptr);
 }
@@ -141,6 +216,53 @@ TEST(EnglishWordDictionaryRewriterTest, CorrectsSubstitutionSpelling) {
   EXPECT_NE(FindCandidate(*segment, "property"), nullptr);
 }
 
+TEST(EnglishWordDictionaryRewriterTest,
+     SpellingCorrectionWorksWhenCompletionIsDisabled) {
+  EnglishWordDictionaryRewriter rewriter;
+  Segments segments;
+  Segment* segment = AddInputSegment("recieve", &segments);
+
+  const ConversionRequest request =
+      BuildRequest("recieve", RequestType::CONVERSION, false, true);
+  EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+  EXPECT_NE(FindCandidate(*segment, "receive"), nullptr);
+}
+
+TEST(EnglishWordDictionaryRewriterTest,
+     CompletionDoesNotRunWhenCompletionIsDisabled) {
+  EnglishWordDictionaryRewriter rewriter;
+  Segments segments;
+  Segment* segment = AddInputSegment("gith", &segments);
+
+  const ConversionRequest request =
+      BuildRequest("gith", RequestType::SUGGESTION, false, true);
+  EXPECT_FALSE(rewriter.Rewrite(request, &segments));
+  EXPECT_EQ(FindCandidate(*segment, "GitHub"), nullptr);
+}
+
+TEST(EnglishWordDictionaryRewriterTest,
+     SpellingDoesNotRunWhenSpellingIsDisabled) {
+  EnglishWordDictionaryRewriter rewriter;
+  Segments segments;
+  Segment* segment = AddInputSegment("recieve", &segments);
+
+  const ConversionRequest request =
+      BuildRequest("recieve", RequestType::CONVERSION, true, false);
+  EXPECT_FALSE(rewriter.Rewrite(request, &segments));
+  EXPECT_EQ(FindCandidate(*segment, "receive"), nullptr);
+}
+
+TEST(EnglishWordDictionaryRewriterTest, BothSwitchesDisabled) {
+  EnglishWordDictionaryRewriter rewriter;
+  Segments segments;
+  Segment* segment = AddInputSegment("gith", &segments);
+
+  const ConversionRequest request =
+      BuildRequest("gith", RequestType::SUGGESTION, false, false);
+  EXPECT_FALSE(rewriter.Rewrite(request, &segments));
+  EXPECT_EQ(FindCandidate(*segment, "GitHub"), nullptr);
+}
+
 TEST(EnglishWordDictionaryRewriterTest, DoesNotRunSpellingScanForSuggestion) {
   EnglishWordDictionaryRewriter rewriter;
   Segments segments;
@@ -162,18 +284,7 @@ TEST(EnglishWordDictionaryRewriterTest, DoesNotInjectCompletionIntoConversion) {
   EXPECT_EQ(FindCandidate(*segment, "GitHub"), nullptr);
 }
 
-TEST(EnglishWordDictionaryRewriterTest, MasterSwitchDisablesFeature) {
-  EnglishWordDictionaryRewriter rewriter;
-  Segments segments;
-  Segment* segment = AddInputSegment("gith", &segments);
-
-  const ConversionRequest request =
-      BuildRequest("gith", RequestType::SUGGESTION, false, true);
-  EXPECT_FALSE(rewriter.Rewrite(request, &segments));
-  EXPECT_EQ(FindCandidate(*segment, "GitHub"), nullptr);
-}
-
-TEST(EnglishWordDictionaryRewriterTest, CapabilityTracksSpellingConversion) {
+TEST(EnglishWordDictionaryRewriterTest, CapabilityTracksEnabledFeatures) {
   EnglishWordDictionaryRewriter rewriter;
 
   const ConversionRequest prediction_only =
@@ -181,9 +292,17 @@ TEST(EnglishWordDictionaryRewriterTest, CapabilityTracksSpellingConversion) {
   EXPECT_EQ(rewriter.capability(prediction_only),
             RewriterInterface::PREDICTION | RewriterInterface::SUGGESTION);
 
-  const ConversionRequest with_spelling =
+  const ConversionRequest spelling_only =
+      BuildRequest("gith", RequestType::SUGGESTION, false, true);
+  EXPECT_EQ(rewriter.capability(spelling_only), RewriterInterface::CONVERSION);
+
+  const ConversionRequest all =
       BuildRequest("gith", RequestType::SUGGESTION, true, true);
-  EXPECT_EQ(rewriter.capability(with_spelling), RewriterInterface::ALL);
+  EXPECT_EQ(rewriter.capability(all), RewriterInterface::ALL);
+
+  const ConversionRequest none =
+      BuildRequest("gith", RequestType::SUGGESTION, false, false);
+  EXPECT_EQ(rewriter.capability(none), RewriterInterface::NOT_AVAILABLE);
 }
 
 TEST(EnglishWordDictionaryRewriterTest, PreservesUppercaseInputIntent) {
