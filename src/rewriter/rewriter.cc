@@ -308,8 +308,8 @@ bool CanFilterToConfiguredDateFormats(const config::Config& config) {
 
   if (config.date_conversion_custom_formats_initialized()) {
     // An initialized empty list is intentional. The settings list is the source
-    // of truth, so all DateRewriter-generated date-format candidates are
-    // removed in this state.
+    // of truth for generated date-format candidates; explicit raw input is
+    // preserved separately by CustomDateFormatTokenRewriter.
     return true;
   }
 
@@ -360,9 +360,8 @@ bool IsDateCandidateDescription(const std::string& description) {
 // as today/tomorrow and explicit inputs such as 9/8 keep their own target date.
 //
 // Once the date-format settings are initialized, this rewriter also removes
-// date candidates that are not represented by the ordered list. This makes the
-// settings list authoritative instead of silently appending DateRewriter's
-// fixed standard formats behind the user's choices.
+// generated date candidates that are not represented by the ordered list. The
+// user's explicit raw input is never removed by this formatting filter.
 class CustomDateFormatTokenRewriter final : public RewriterInterface {
  public:
   int capability(const ConversionRequest& request) const override {
@@ -399,6 +398,7 @@ class CustomDateFormatTokenRewriter final : public RewriterInterface {
         const size_t index = candidate_index - 1;
         converter::Candidate* candidate =
             segment->mutable_candidate(index);
+        const bool is_raw_input = candidate->value == segment->key();
         const auto it = dates.find(candidate->description);
         const CalendarDate* date =
             it == dates.end() ? single_date : &it->second;
@@ -413,7 +413,8 @@ class CustomDateFormatTokenRewriter final : public RewriterInterface {
           }
           modified = true;
         }
-        if (!filter || !IsDateCandidateDescription(candidate->description)) {
+        if (!filter || !IsDateCandidateDescription(candidate->description) ||
+            is_raw_input) {
           continue;
         }
         if (IsConfiguredDateValue(request.config(), date->year, date->month,
