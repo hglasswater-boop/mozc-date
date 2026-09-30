@@ -44,6 +44,10 @@ jobs:
         shell: pwsh
         run: pwsh -NoProfile -File .github/scripts/test-updater.ps1
 
+      - name: Test Windows Installer metadata extraction
+        shell: pwsh
+        run: pwsh -NoProfile -File .github/scripts/test-msi-metadata.ps1
+
       - name: Configure product version and check published release ordering
         shell: pwsh
         env:

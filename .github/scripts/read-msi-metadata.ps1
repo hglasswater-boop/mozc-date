@@ -20,7 +20,7 @@ function Get-MsiProperty([string]$Name) {
     return $row.StringData(1)
   }
   finally {
-    $view.Close()
+    $null = $view.Close()
   }
 }
 
@@ -36,7 +36,7 @@ try {
   }
 }
 finally {
-  $view.Close()
+  $null = $view.Close()
 }
 $peFiles = @()
 $binaryNames = @{

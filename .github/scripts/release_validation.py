@@ -189,7 +189,7 @@ def manifest(args):
         "passed_script_tests": [
             "build_tools.product_version_test", "win32.installer.build_installer_test",
             "build_tools.gen_win32_resource_header_test", "win32.tip.build_tip_forwarder_dll_test",
-            "release_validation_test", "test-updater.ps1"
+            "release_validation_test", "test-updater.ps1", "test-msi-metadata.ps1"
         ],
         "verified_features": FEATURES,
         "verification_scope": "Automated tests and built MSI metadata; Windows installation and UI checks are separate.",
