@@ -230,7 +230,7 @@
     <item row="1" column="2">
      <widget class="QLabel" name="releaseLinkLabel">
       <property name="text">
-       <string>&lt;a href=&quot;https://github.com/hglasswater-boop/mozkey-date-minimal/releases/latest&quot;&gt;GitHub Release&lt;/a&gt;</string>
+       <string>&lt;a href=&quot;https://github.com/hglasswater-boop/mozc-date/releases/latest&quot;&gt;GitHub Release&lt;/a&gt;</string>
       </property>
       <property name="openExternalLinks">
        <bool>true</bool>

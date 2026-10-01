@@ -67,8 +67,8 @@ QString ReplaceString(const QString &str) {
   Replace(replaced, "[ProductName]", GuiUtil::ProductName());
 
   Replace(replaced, "[ProductUrl]",
-          "https://github.com/hglasswater-boop/mozkey-date-minimal");
-  Replace(replaced, "[ForumUrl]", "https://github.com/hglasswater-boop/mozkey-date-minimal/issues");
+          "https://github.com/hglasswater-boop/mozc-date");
+  Replace(replaced, "[ForumUrl]", "https://github.com/hglasswater-boop/mozc-date/issues");
   Replace(replaced, "[ForumName]", QObject::tr("issues"));
 
   const std::string credit_filepath =

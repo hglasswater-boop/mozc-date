@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$Repository = "hglasswater-boop/mozkey-date-minimal"
+$Repository = "hglasswater-boop/mozc-date"
 $InstallerAssetName = "Mozc64_x64.msi"
 $ChecksumAssetName = "$InstallerAssetName.sha256"
 $StateDirectory = Join-Path $env:LOCALAPPDATA "MozcDateEnglish"

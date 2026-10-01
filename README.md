@@ -9,9 +9,9 @@ GitHub Release 経由の自動更新です。既存の Mozkey-date とは別リ�
 
 ## 入手・ビルド
 
-Windows x64 の MSI は [Releases](https://github.com/hglasswater-boop/mozkey-date-minimal/releases)
+Windows x64 の MSI は [Releases](https://github.com/hglasswater-boop/mozc-date/releases)
 から入手できます。公開前のビルド成果物は
-[Windows x64 CI](https://github.com/hglasswater-boop/mozkey-date-minimal/actions/workflows/windows.yaml)
+[Windows x64 CI](https://github.com/hglasswater-boop/mozc-date/actions/workflows/windows.yaml)
 にあります。ローカルビルドは [公式の Windows 手順](docs/build_mozc_in_windows.md)
 を参照してください。
 
