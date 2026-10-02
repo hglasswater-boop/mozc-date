@@ -75,7 +75,7 @@ class ConfigHandler {
   // These functions are also thread-safe.
   static void GetDefaultConfig(Config* config);
 
-  // Gets the defaults that include Mozkey-specific product options.
+  // Gets the defaults that include mozc-date-specific product options.
   static Config GetProductDefaultConfig();
 
   static const Config& DefaultConfig();

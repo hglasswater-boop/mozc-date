@@ -84,7 +84,7 @@ void SetLabelText(QLabel *label) {
 
 #ifdef _WIN32
 QString ExtractUpdaterScript() {
-  QFile resource(QStringLiteral(":/update-mozc-minimal.ps1"));
+  QFile resource(QStringLiteral(":/update-mozc-date.ps1"));
   if (!resource.open(QIODevice::ReadOnly)) {
     return {};
   }

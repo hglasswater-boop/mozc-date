@@ -12,12 +12,13 @@ $ErrorActionPreference = "Stop"
 $Repository = "hglasswater-boop/mozc-date"
 $InstallerAssetName = "Mozc64_x64.msi"
 $ChecksumAssetName = "$InstallerAssetName.sha256"
+# Keep the existing update history and logs across the product rename.
 $StateDirectory = Join-Path $env:LOCALAPPDATA "MozcDateEnglish"
 $InstalledReleaseFile = Join-Path $StateDirectory "last-installed-release.txt"
 $LogDirectory = Join-Path $StateDirectory "Logs"
 $ApiHeaders = @{
   Accept = "application/vnd.github+json"
-  "User-Agent" = "mozc-date-english-windows-updater"
+  "User-Agent" = "mozc-date-windows-updater"
   "X-GitHub-Api-Version" = "2022-11-28"
 }
 
@@ -45,7 +46,7 @@ function Get-InstallerErrorMessage([int]$ExitCode) {
     1603 { return "Windows Installer で致命的なエラーが発生しました。" }
     1618 { return "別の Windows Installer 処理が実行中です。完了後にもう一度更新してください。" }
     1619 { return "ダウンロードした MSI を開けませんでした。" }
-    1638 { return "別バージョンの Mozc Date English が残っているため更新できませんでした。MSI の UpgradeCode / ProductVersion を確認してください。" }
+    1638 { return "別バージョンの mozc-date が残っているため更新できませんでした。MSI の UpgradeCode / ProductVersion を確認してください。" }
     default { return "インストーラーが終了コード $ExitCode で失敗しました。" }
   }
 }
@@ -74,7 +75,7 @@ $installedTag = $null
 if (Test-Path $InstalledReleaseFile) {
   $installedTag = (Get-Content -LiteralPath $InstalledReleaseFile -Raw).Trim()
   if (-not $Force -and $installedTag -eq $tag) {
-    Write-Host "Mozc Date English $tag はこの更新ツールですでにインストール済みです。"
+    Write-Host "mozc-date $tag はこの更新ツールですでにインストール済みです。"
     Write-Host "再インストールする場合は -Force を指定してください。"
     exit 0
   }
@@ -82,13 +83,13 @@ if (Test-Path $InstalledReleaseFile) {
 
 $installerAsset = Get-ReleaseAsset $release $InstallerAssetName
 $checksumAsset = Get-ReleaseAsset $release $ChecksumAssetName
-$tempDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("mozc-date-english-update-" + [Guid]::NewGuid().ToString("N"))
+$tempDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("mozc-date-update-" + [Guid]::NewGuid().ToString("N"))
 $installerPath = Join-Path $tempDirectory $InstallerAssetName
 $checksumPath = Join-Path $tempDirectory $ChecksumAssetName
 
 New-Item -ItemType Directory -Path $tempDirectory -Force | Out-Null
 try {
-  Write-Host "Mozc Date English $tag をダウンロードしています..."
+  Write-Host "mozc-date $tag をダウンロードしています..."
   Invoke-WebRequest -UseBasicParsing -Uri $installerAsset.browser_download_url -Headers $ApiHeaders -OutFile $installerPath
   Invoke-WebRequest -UseBasicParsing -Uri $checksumAsset.browser_download_url -Headers $ApiHeaders -OutFile $checksumPath
 
@@ -142,10 +143,10 @@ try {
   Set-Content -LiteralPath $InstalledReleaseFile -Value $tag -Encoding ASCII
 
   if ($process.ExitCode -in @(1641, 3010)) {
-    Write-Host "Mozc Date English $tag への更新が完了しました。Windows の再起動が必要です。"
+    Write-Host "mozc-date $tag への更新が完了しました。Windows の再起動が必要です。"
   }
   else {
-    Write-Host "Mozc Date English $tag への更新が完了しました。"
+    Write-Host "mozc-date $tag への更新が完了しました。"
   }
 }
 finally {

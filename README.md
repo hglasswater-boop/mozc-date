@@ -1,4 +1,4 @@
-# Mozc Date English
+# mozc-date
 
 公開版の [Mozc](https://github.com/google/mozc) を起点にした Windows x64 向けの派生版です。
 製品版 Google 日本語入力のソースではありません。
@@ -17,7 +17,7 @@ Windows x64 の MSI は [Releases](https://github.com/hglasswater-boop/mozc-date
 
 ## 更新
 
-「Mozc について」画面で「更新を確認」を押すと、このリポジトリの最新 Release を
+「mozc-date について」画面で「更新を確認」を押すと、このリポジトリの最新 Release を
 確認します。更新可能なときは「更新する」から x64 MSI をダウンロードし、SHA-256 を
 照合してから Windows Installer を起動します。更新時に管理者権限の確認が表示されます。
 
