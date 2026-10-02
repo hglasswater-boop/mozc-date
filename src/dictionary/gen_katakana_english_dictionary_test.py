@@ -1,5 +1,5 @@
 import unittest
-import gen_katakana_english_dictionary as generator
+from dictionary import gen_katakana_english_dictionary as generator
 
 
 class DictionaryTest(unittest.TestCase):
