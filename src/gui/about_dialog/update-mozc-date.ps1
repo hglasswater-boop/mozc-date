@@ -58,14 +58,12 @@ function Get-MsiVersion([string]$Version) {
   $major = [long]$Matches[1]
   $minor = [long]$Matches[2]
   $build = [long]$Matches[3]
-  if ($Matches.ContainsKey(4)) {
-    # Historical v3/v4 releases used the Mozc version as ProductVersion.
-    # Windows Installer ignores the fourth component.
-    if ($major -ge 100) {
-      throw "旧形式のバージョンの範囲が正しくありません: $Version"
+  $legacyVersions = @('3.34.6239.100', '3.34.6239.101', '3.34.6239.102',
+                      '3.34.6239.103', '3.34.6239.104', '4.0.0.0')
+  if ($Version -notin $legacyVersions) {
+    if ($Matches.ContainsKey(4) -and $Matches[4] -ne '0') {
+      throw "製品版数の4番目の数字は0にしてください: $Version"
     }
-  }
-  else {
     $major += 100
   }
   if ($major -gt 255 -or $minor -gt 255 -or $build -gt 65535) {

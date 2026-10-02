@@ -32,7 +32,7 @@ class ProductVersionTest(unittest.TestCase):
 
   def test_rejects_ambiguous_or_unrepresentable_versions(self):
     values = (
-        '', '0.2', '0.2.1.0', 'v0.2.1', '0.2.1-beta', '0.2.1+build',
+        '', '0.2', '0.2.1.1', '0.2.1.00', 'v0.2.1', '0.2.1-beta', '0.2.1+build',
         '00.2.1', '0.02.1', '0.2.01', '-1.2.1', '+0.2.1', ' 0.2.1',
         '0.2.1\n', '０.2.1', '156.0.0', '0.256.0', '0.0.65536',
         '9' * 5000 + '.0.0',
@@ -40,6 +40,16 @@ class ProductVersionTest(unittest.TestCase):
     for value in values:
       with self.subTest(value=value[:80]), self.assertRaises(ValueError):
         product_version.parse_version(value)
+
+  def test_four_component_release_preserves_display_and_msi_mapping(self):
+    version = product_version.parse_version('1.0.0.0')
+    self.assertEqual(version.as_manifest(), {
+        'product_version': '1.0.0.0',
+        'msi_version': '101.0.0',
+        'release_tag': 'v1.0.0.0',
+    })
+    self.assertIn('kProductVersion[] = "1.0.0.0";', product_version.render_header(version))
+    self.assertEqual(product_version.parse_version('155.255.65535.0').msi_version, '255.255.65535')
 
   def test_msi_versions_upgrade_legacy_and_preserve_release_order(self):
     def numeric(value):

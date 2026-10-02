@@ -6,8 +6,8 @@
 """Generates the product version separately from Mozc's engine version.
 
 MOZC_DATE_PRODUCT_VERSION overrides product_version.txt for release builds. The
-three-component version is deliberately canonical: aliases such as 00.2.1
-must not become distinct Git tags for the same Windows Installer version.
+Versions have three components or a fourth component fixed at zero. Aliases
+such as 00.2.1 must not become distinct Git tags for the same installer version.
 """
 
 import argparse
@@ -21,7 +21,7 @@ from collections.abc import Mapping
 
 MSI_MAJOR_OFFSET = 100
 _VERSION_PATTERN = re.compile(
-    r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+    r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:\.(0))?'
 )
 
 
@@ -30,10 +30,12 @@ class ProductVersion:
   major: int
   minor: int
   patch: int
+  revision: int | None = None
 
   @property
   def product_version(self) -> str:
-    return f'{self.major}.{self.minor}.{self.patch}'
+    version = f'{self.major}.{self.minor}.{self.patch}'
+    return version if self.revision is None else version + '.0'
 
   @property
   def msi_version(self) -> str:
@@ -58,7 +60,7 @@ def parse_version(value: str) -> ProductVersion:
   match = _VERSION_PATTERN.fullmatch(value)
   if not match:
     raise ValueError(
-        'Product version must be major.minor.patch with ASCII digits, no'
+        'Product version must be major.minor.patch[.0] with ASCII digits, no'
         ' leading zeroes, and no prerelease or build suffix: ' + repr(value)
     )
   components = match.groups()
@@ -71,7 +73,10 @@ def parse_version(value: str) -> ProductVersion:
       raise ValueError(
           f'Product {name} must be at most {limit} to fit MSI ProductVersion'
       )
-  return ProductVersion(*(int(component) for component in components))
+  return ProductVersion(
+      *(int(component) for component in components[:3]),
+      revision=0 if components[3] is not None else None,
+  )
 
 
 def read_version(

@@ -44,14 +44,26 @@ class ReleaseValidationTest(unittest.TestCase):
     def test_new_release_order_after_transition(self):
         self.assertEqual(validation.check_release_order("v0.2.1", ["v0.2.0"]), self.expected)
 
-    def test_tag_requires_three_canonical_components(self):
+    def test_tag_requires_canonical_components_and_cannot_reuse_legacy_tags(self):
         for tag in ("v4.0.0.0", "0.2.1", "v0.2", "v0.2.1-rc1", "v0.02.1", "v0.2.1\n", "v0.٢.1", "v０.2.1"):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 validation.release_version(tag)
 
-    def test_unknown_published_tag_requires_explicit_migration_policy(self):
+    def test_nonzero_revision_cannot_be_a_product_release(self):
         with self.assertRaises(ValueError):
-            validation.check_release_order("v0.2.1", ["v5.0.0.0"])
+            validation.check_release_order("v0.2.1", ["v5.0.0.1"])
+
+    def test_four_component_release_upgrades_every_published_legacy_version(self):
+        self.assertEqual(validation.check_release_order("v1.0.0.0", validation.LEGACY_RELEASE_TAGS), {
+            "product_version": "1.0.0.0", "msi_version": "101.0.0", "release_tag": "v1.0.0.0",
+        })
+        self.assertEqual(validation.previous_msi_version("v1.0.0.0"), "101.0.0")
+        self.assertEqual(validation.previous_msi_version("v4.0.1.0"), "104.0.1")
+
+    def test_three_and_four_component_aliases_cannot_publish_same_msi_version(self):
+        for current, previous in (("v1.0.0.0", "v1.0.0"), ("v1.0.0", "v1.0.0.0")):
+            with self.subTest(current=current), self.assertRaises(ValueError):
+                validation.check_release_order(current, [previous])
 
     def test_msi_field_bounds(self):
         self.assertEqual(validation.product_version("155.255.65535")["msi_version"], "255.255.65535")

@@ -89,6 +89,8 @@ try {
       @{ Name = 'check-legacy'; Tag = 'v4.0.0.0'; Display = '4.0.0.0'; Msi = '4.0.0' },
       @{ Name = 'check-legacy-mozc'; Tag = 'v3.34.6239.104'; Display = '3.34.6239.104'; Msi = '3.34.6239' },
       @{ Name = 'check-future-major'; Tag = 'v1.0.0'; Display = '1.0.0'; Msi = '101.0.0' }
+      @{ Name = 'check-four-component'; Tag = 'v1.0.0.0'; Display = '1.0.0.0'; Msi = '101.0.0' },
+      @{ Name = 'check-four-component-max'; Tag = 'v155.255.65535.0'; Display = '155.255.65535.0'; Msi = '255.255.65535' }
   )) {
     $result = Invoke-UpdaterCase -Name $case.Name -Tag $case.Tag -Check $true
     Assert-Equal $result.Code 0 $case.Name
@@ -105,6 +107,10 @@ try {
       @{ Name = 'equal'; Tag = 'v0.2.1'; Current = '0.2.1'; Install = $false },
       @{ Name = 'older'; Tag = 'v0.2.0'; Current = '0.2.1'; Install = $false },
       @{ Name = 'prevent-legacy-downgrade'; Tag = 'v4.0.0.0'; Current = '0.2.1'; Install = $false }
+      @{ Name = 'migrate-v4-four'; Tag = 'v1.0.0.0'; Current = '4.0.0.0'; Install = $true },
+      @{ Name = 'migrate-v3-four'; Tag = 'v1.0.0.0'; Current = '3.34.6239.104'; Install = $true },
+      @{ Name = 'upgrade-four'; Tag = 'v1.0.1.0'; Current = '1.0.0.0'; Install = $true },
+      @{ Name = 'equal-four'; Tag = 'v1.0.0.0'; Current = '1.0.0.0'; Install = $false }
   )) {
     $result = Invoke-UpdaterCase -Name $case.Name -Tag $case.Tag -Current $case.Current
     Assert-Equal $result.Code 0 "$($case.Name): $($result.Output)"
@@ -117,12 +123,12 @@ try {
     }
   }
 
-  foreach ($tag in @('0.2.1', 'v0.2', 'v0.2.1-beta', 'v00.2.1', 'v156.0.0', 'v0.256.0', 'v0.0.65536', 'v100.0.0.0', 'V0.2.1', "v0.2.1`n")) {
+  foreach ($tag in @('0.2.1', 'v0.2', 'v0.2.1-beta', 'v00.2.1', 'v156.0.0', 'v0.256.0', 'v0.0.65536', 'v156.0.0.0', 'v1.0.0.1', 'V0.2.1', "v0.2.1`n")) {
     $result = Invoke-UpdaterCase -Name ('invalid-' + [Guid]::NewGuid().ToString('N')) -Tag $tag -Check $true
     if ($result.Code -eq 0) { throw "Invalid tag was accepted: $tag" }
     Assert-Equal $result.InvokedInstaller $false "Invalid tag $tag"
   }
-  Write-Output 'Updater version checks passed (20 cases, Windows PowerShell).'
+  Write-Output 'Updater version checks passed (27 cases, Windows PowerShell).'
 }
 finally {
   $resolvedRoot = [IO.Path]::GetFullPath($testRoot)

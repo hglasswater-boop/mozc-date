@@ -71,6 +71,15 @@ class Win32ResourceVersionTest(unittest.TestCase):
   def test_default_output_is_windows_utf16_resource_script(self):
     self.assertIn('#define MOZC_RES_VERSION_NUMBER 100,2,1,0\n', self.generate(utf8=False))
 
+  def test_four_component_display_uses_upgrade_safe_binary_version(self):
+    self.manifest.write_text(
+        json.dumps(product_version.parse_version('1.0.0.0').as_manifest()),
+        encoding='utf-8')
+    output = self.generate()
+    self.assertIn('#define MOZC_RES_VERSION_NUMBER 101,0,0,0\n', output)
+    self.assertIn('#define MOZC_RES_VERSION_STRING "1.0.0.0"\n', output)
+    self.assertIn('#define MOZC_RES_SPECIFIC_VERSION_STRING "101.0.0.0"\n', output)
+
   def test_google_branding_keeps_engine_version_and_ignores_product_manifest(self):
     self.manifest.write_text('invalid JSON', encoding='utf-8')
     output = self.generate(branding='GoogleJapaneseInput')

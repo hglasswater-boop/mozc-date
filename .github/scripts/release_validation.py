@@ -8,6 +8,10 @@ import re
 
 
 UPGRADE_CODE = "DD94B570-B5E2-4100-9D42-61930C611D8A"
+LEGACY_RELEASE_TAGS = frozenset((
+    "v3.34.6239.100", "v3.34.6239.101", "v3.34.6239.102",
+    "v3.34.6239.103", "v3.34.6239.104", "v4.0.0.0",
+))
 TEST_TARGETS = (
     "//build_tools:mozc_version_test",
     "//build_tools:product_version_test",
@@ -48,9 +52,9 @@ INSTALLED_BINARIES = frozenset((
 
 def product_version(version):
     """Return canonical product and MSI versions, enforcing MSI field limits."""
-    if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", version):
-        raise ValueError(f"Product version must have three numeric components: {version}")
-    major, minor, patch = map(int, version.split("."))
+    if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.0)?", version):
+        raise ValueError(f"Product version must use MAJOR.MINOR.PATCH[.0]: {version}")
+    major, minor, patch = map(int, version.split(".")[:3])
     if major > 155 or minor > 255 or patch > 65535:
         raise ValueError(f"Product version exceeds Windows Installer limits: {version}")
     return {
@@ -61,8 +65,8 @@ def product_version(version):
 
 
 def release_version(tag):
-    if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
-        raise ValueError(f"Release tags must use vMAJOR.MINOR.PATCH: {tag}")
+    if tag in LEGACY_RELEASE_TAGS or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+(?:\.0)?", tag):
+        raise ValueError(f"Release tags must use vMAJOR.MINOR.PATCH[.0] and cannot reuse a legacy tag: {tag}")
     return product_version(tag[1:])
 
 
@@ -71,12 +75,10 @@ def version_tuple(version):
 
 
 def previous_msi_version(tag):
-    if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
-        return release_version(tag)["msi_version"]
-    # Historic engine-based v3/v4 tags precede the independent product scheme.
-    if re.fullmatch(r"v[34]\.[0-9]+\.[0-9]+\.[0-9]+", tag):
+    # Only already-published engine-based tags use unoffset MSI versions.
+    if tag in LEGACY_RELEASE_TAGS:
         return ".".join(tag[1:].split(".")[:3])
-    raise ValueError(f"Unsupported published release tag: {tag}")
+    return release_version(tag)["msi_version"]
 
 
 def check_release_order(tag, previous_tags):
@@ -87,7 +89,7 @@ def check_release_order(tag, previous_tags):
             raise ValueError(
                 f"MSI {current['msi_version']} must be newer than {previous} (MSI {old_msi})"
             )
-        if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", previous):
+        if previous not in LEGACY_RELEASE_TAGS:
             if version_tuple(current["product_version"]) <= version_tuple(previous[1:]):
                 raise ValueError(f"Release {tag} must be newer than {previous}")
     return current
