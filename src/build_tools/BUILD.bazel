@@ -80,6 +80,23 @@ mozc_py_binary(
     srcs = ["mozc_version.py"],
 )
 
+mozc_py_library(
+    name = "product_version_lib",
+    srcs = ["product_version.py"],
+)
+
+mozc_py_binary(
+    name = "product_version",
+    srcs = ["product_version.py"],
+)
+
+py_test(
+    name = "product_version_test",
+    size = "small",
+    srcs = ["product_version_test.py"],
+    deps = [":product_version_lib"],
+)
+
 py_test(
     name = "mozc_version_test",
     size = "small",
@@ -187,7 +204,18 @@ exports_files([
 mozc_py_binary(
     name = "gen_win32_resource_header",
     srcs = ["gen_win32_resource_header.py"],
-    deps = [":mozc_version_lib"],
+    deps = [
+        ":mozc_version_lib",
+        ":product_version_lib",
+    ],
+)
+
+py_test(
+    name = "gen_win32_resource_header_test",
+    size = "small",
+    srcs = ["gen_win32_resource_header_test.py"],
+    data = ["mozc_win32_resource_template.rc"],
+    deps = [":gen_win32_resource_header"],
 )
 
 mozc_py_library(

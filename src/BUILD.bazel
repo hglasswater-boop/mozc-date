@@ -217,7 +217,7 @@ cc_library(
 )
 
 exports_files(
-    ["version.bzl"],
+    ["product_version.txt", "version.bzl"],
     visibility = [
         "//base:__pkg__",
         "//data_manager:__subpackages__",

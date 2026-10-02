@@ -26,36 +26,43 @@ jobs:
           submodules: false
           persist-credentials: false
 
-      - name: Set product version from release tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Test product version and release validation
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+\.0)$') {
-            throw "Release tags must use four numeric components and end in .0 for Windows Installer compatibility: $env:GITHUB_REF_NAME"
+          python -m unittest discover --start-directory .github/scripts --pattern '*_test.py'
+          if ($LASTEXITCODE -ne 0) { throw 'Release validation tests failed.' }
+          Push-Location src
+          try {
+            python -m unittest build_tools.product_version_test win32.installer.build_installer_test build_tools.gen_win32_resource_header_test win32.tip.build_tip_forwarder_dll_test
+            if ($LASTEXITCODE -ne 0) { throw 'Product version tests failed.' }
           }
-          Add-Content -Path $env:GITHUB_ENV -Value "MOZC_VERSION=$($Matches[1])" -Encoding utf8
+          finally {
+            Pop-Location
+          }
 
-      - name: Check product version ordering
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Test updater version compatibility
+        shell: pwsh
+        run: pwsh -NoProfile -File .github/scripts/test-updater.ps1
+
+      - name: Test Windows Installer metadata extraction
+        shell: pwsh
+        run: pwsh -NoProfile -File .github/scripts/test-msi-metadata.ps1
+
+      - name: Configure product version and check published release ordering
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $previousTag = gh api "repos/$($env:GITHUB_REPOSITORY)/releases/latest" --jq .tag_name
-          if ($LASTEXITCODE -ne 0) {
-            throw "Could not read the latest published release tag."
+          $arguments = @('configure', '--version-file', 'src/product_version.txt', '--env-file', $env:GITHUB_ENV,
+                         '--output', 'release-version.json', '--test-targets', 'test-targets.json', '--pe-targets', 'pe-targets.json')
+          if ($env:GITHUB_REF.StartsWith('refs/tags/')) {
+            $publishedTags = @(gh api "repos/$($env:GITHUB_REPOSITORY)/releases?per_page=100" --paginate --jq '.[] | select(.draft == false) | .tag_name')
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read published release tags.' }
+            ConvertTo-Json -InputObject @($publishedTags) | Set-Content -LiteralPath 'previous-release-tags.json' -Encoding utf8
+            $arguments += @('--tag', $env:GITHUB_REF_NAME, '--previous-tags', 'previous-release-tags.json')
           }
-          $previousVersionText = $previousTag.Trim() -replace '^v', ''
-          $previousVersion = [version]$previousVersionText
-          $nextVersion = [version]$env:MOZC_VERSION
-          if ($nextVersion -le $previousVersion) {
-            throw "Product version $nextVersion must be newer than the latest release $previousVersion."
-          }
-          $previousMsiVersion = [version]("$($previousVersion.Major).$($previousVersion.Minor).$($previousVersion.Build)")
-          $nextMsiVersion = [version]("$($nextVersion.Major).$($nextVersion.Minor).$($nextVersion.Build)")
-          if ($nextMsiVersion -le $previousMsiVersion) {
-            throw "Windows Installer uses only the first three version fields; $nextVersion must increase beyond $previousVersion in those fields."
-          }
+          python .github/scripts/release_validation.py @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Product release version validation failed.' }
 
       - name: Restore dependency cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
@@ -87,19 +94,29 @@ jobs:
         working-directory: .\src
         run: rmdir third_party\qt_src /s /q
 
-      - name: Test date and English word rewriters
-        shell: cmd
+      - name: Test versions, settings, date and English word rewriters
+        shell: pwsh
         working-directory: .\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk test //base:version_test //config:config_handler_test //rewriter:version_rewriter_test //rewriter:date_rewriter_test //rewriter:english_word_dictionary_rewriter_test //rewriter:rewriter_test --action_env=MOZC_VERSION=%MOZC_VERSION% --config release_build --platforms=//:windows-x86_64
+        run: |
+          $targets = @(Get-Content -LiteralPath '../test-targets.json' -Raw | ConvertFrom-Json)
+          bazelisk test @targets --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
+          if ($LASTEXITCODE -ne 0) { throw 'Required Windows tests failed.' }
 
       - name: Build x64 MSI
-        shell: cmd
+        shell: pwsh
         working-directory: .\src
         env:
           ANDROID_NDK_HOME: ""
-        run: bazelisk build package --action_env=MOZC_VERSION=%MOZC_VERSION% --config release_build --platforms=//:windows-x86_64
+        run: |
+          bazelisk build package //base:product_version_json --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
+          if ($LASTEXITCODE -ne 0) { throw 'Windows MSI build failed.' }
+          $targets = @(Get-Content -LiteralPath '../pe-targets.json' -Raw | ConvertFrom-Json)
+          $query = 'set(' + ($targets -join ' ') + ')'
+          $binaryPaths = @(bazelisk cquery $query --output=files --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64)
+          if ($LASTEXITCODE -ne 0) { throw 'Could not locate built PE binaries.' }
+          $binaryPaths | Set-Content -LiteralPath '../built-pe-paths.txt' -Encoding utf8
 
       - name: Prepare release assets
         shell: pwsh
@@ -109,37 +126,21 @@ jobs:
           $hash = (Get-FileHash -LiteralPath 'Mozc64_x64.msi' -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -LiteralPath 'Mozc64_x64.msi.sha256' -Value "$hash  Mozc64_x64.msi" -Encoding ascii
 
-      - name: Verify release MSI metadata
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Verify product, About, MSI and PE versions
         shell: pwsh
         run: |
-          $expectedVersion = $env:MOZC_VERSION
-          if ($expectedVersion -notmatch '^\d+\.\d+\.\d+\.0$') {
-            throw "Unexpected release version: $expectedVersion"
-          }
-          $installer = New-Object -ComObject WindowsInstaller.Installer
-          $database = $installer.OpenDatabase((Resolve-Path 'Mozc64_x64.msi').Path, 0)
-          function Get-MsiProperty([object]$database, [string]$name) {
-            $view = $database.OpenView("SELECT ``Value`` FROM ``Property`` WHERE ``Property``='$name'")
-            $null = $view.Execute()
-            $row = $view.Fetch()
-            if ($null -eq $row) { return $null }
-            return $row.StringData(1)
-          }
-          $productVersion = Get-MsiProperty $database 'ProductVersion'
-          $productName = Get-MsiProperty $database 'ProductName'
-          $manufacturer = Get-MsiProperty $database 'Manufacturer'
-          $publisher = $database.SummaryInformation(0).Property(4)
-          if ($productVersion -ne $expectedVersion) {
-            throw "MSI ProductVersion '$productVersion' does not match tag version '$expectedVersion'"
-          }
-          if ($productName -ne 'mozc-date') {
-            throw "Unexpected MSI ProductName: '$productName'"
-          }
-          if ($manufacturer -ne 'mozc-date Project' -or $publisher -ne 'mozc-date Project') {
-            throw "Unexpected MSI publisher: Property='$manufacturer', Summary='$publisher'"
-          }
-          Write-Output "Verified MSI ProductVersion=$productVersion, ProductName=$productName, Publisher=$publisher"
+          ./.github/scripts/read-msi-metadata.ps1 -Path 'Mozc64_x64.msi' -OutputPath 'msi-metadata.json' -BinaryPathsFile 'built-pe-paths.txt' -BinaryBaseDirectory 'src'
+          python .github/scripts/release_validation.py verify --expected release-version.json --generated src/bazel-bin/base/product_version.json --header src/bazel-bin/base/product_version_def.h --msi-metadata msi-metadata.json
+          if ($LASTEXITCODE -ne 0) { throw 'Built product version metadata is inconsistent.' }
+
+      - name: Record verified commit and feature evidence
+        shell: pwsh
+        run: |
+          $commit = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Could not identify the built commit.' }
+          $runUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          python .github/scripts/release_validation.py manifest --expected release-version.json --test-targets test-targets.json --commit $commit --expected-commit $env:GITHUB_SHA --repository $env:GITHUB_REPOSITORY --run-url $runUrl --event $env:GITHUB_EVENT_NAME --msi Mozc64_x64.msi --msi-metadata msi-metadata.json --output release-manifest.json --summary $env:GITHUB_STEP_SUMMARY
+          if ($LASTEXITCODE -ne 0) { throw 'Could not record verified release evidence.' }
 
       - name: Upload x64 MSI
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -148,6 +149,14 @@ jobs:
           path: |
             Mozc64_x64.msi
             Mozc64_x64.msi.sha256
+            release-manifest.json
+            release-version.json
+            msi-metadata.json
+            test-targets.json
+            pe-targets.json
+            built-pe-paths.txt
+            src/bazel-bin/base/product_version.json
+            src/bazel-bin/base/product_version_def.h
           if-no-files-found: error
 
       - name: Publish tagged release for auto update
@@ -156,4 +165,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME 'Mozc64_x64.msi' 'Mozc64_x64.msi.sha256' 'src/gui/about_dialog/update-mozc-date.ps1' --title "mozc-date $env:GITHUB_REF_NAME" --generate-notes
+          gh release create $env:GITHUB_REF_NAME 'Mozc64_x64.msi' 'Mozc64_x64.msi.sha256' 'release-manifest.json' 'src/gui/about_dialog/update-mozc-date.ps1' --title "mozc-date $env:GITHUB_REF_NAME" --generate-notes --latest

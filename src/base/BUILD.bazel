@@ -727,6 +727,36 @@ mozc_run_build_tool(
 )
 
 mozc_run_build_tool(
+    name = "product_version_def_h",
+    srcs = {
+        "--version_file": ["//:product_version.txt"],
+    },
+    outs = {
+        "--header": "product_version_def.h",
+    },
+    tool = "//build_tools:product_version",
+    visibility = ["//visibility:private"],
+)
+
+mozc_run_build_tool(
+    name = "product_version_manifest",
+    srcs = {
+        "--version_file": ["//:product_version.txt"],
+    },
+    outs = {
+        "--output": "product_version.json",
+    },
+    tool = "//build_tools:product_version",
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "product_version_json",
+    srcs = [":product_version_manifest"],
+    visibility = ["//:__subpackages__"],
+)
+
+mozc_run_build_tool(
     name = "version_def_h",
     srcs = {
         "--version_file": [":mozc_version_txt"],
@@ -749,6 +779,7 @@ mozc_cc_library(
     ],
     hdrs = [
         "version.h",
+        ":product_version_def_h",
         ":version_def_h",
     ],
     deps = [
@@ -766,9 +797,11 @@ mozc_cc_test(
     size = "small",
     srcs = ["version_test.cc"],
     deps = [
+        ":number_util",
         ":util",
         ":version",
         "//testing:gunit_main",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
     ],
 )

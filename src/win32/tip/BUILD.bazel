@@ -29,6 +29,7 @@
 
 # Mozc TIP (Text Input Processor) for Windows Text Services Framework.
 
+load("@rules_python//python:defs.bzl", "py_test")
 load(
     "//:build_defs.bzl",
     "MOZC_TAGS",
@@ -51,8 +52,16 @@ mozc_py_binary(
     visibility = ["//visibility:private"],
     deps = [
         "//build_tools:mozc_version_lib",
+        "//build_tools:product_version_lib",
         "//build_tools:vs_util",
     ],
+)
+
+py_test(
+    name = "build_tip_forwarder_dll_test",
+    size = "small",
+    srcs = ["build_tip_forwarder_dll_test.py"],
+    deps = [":build_tip_forwarder_dll"],
 )
 
 mozc_cc_library(
@@ -137,14 +146,14 @@ genrule(
     name = "mozc_tip64x",
     srcs = [
         "//base:mozc_version_txt",
-    ],
+    ] + (["//base:product_version_json"] if BRANDING == "Mozc" else []),
     outs = ["mozc_tip64x.dll" if BRANDING == "Mozc" else "GoogleIMEJaTIP64X.msi"],
     cmd = " ".join([
         "$(location :build_tip_forwarder_dll)",
         "--output=$@",
         "--version_file=$(location //base:mozc_version_txt)",
         "--branding=" + BRANDING,
-    ]),
+    ] + (["--product_version_file=$(location //base:product_version_json)"] if BRANDING == "Mozc" else [])),
     target_compatible_with = ["@platforms//os:windows"],
     tools = [
         ":build_tip_forwarder_dll",

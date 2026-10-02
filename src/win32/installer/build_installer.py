@@ -36,6 +36,7 @@ import pathlib
 import subprocess
 
 from build_tools import mozc_version
+from build_tools import product_version
 from build_tools import vs_util
 
 
@@ -77,6 +78,16 @@ def run_wix4(args) -> None:
     args: args
   """
   arch = args.arch
+
+  # Consume the same generated manifest as the binaries. Reading the release
+  # environment again here could silently build an MSI with a different version.
+  installer_product_version = None
+  if args.branding == 'Mozc':
+    if not args.product_version_file:
+      raise ValueError('--product_version_file is required for Mozc branding')
+    installer_product_version = product_version.read_manifest(
+        pathlib.Path(args.product_version_file)
+    ).msi_version
 
   vcvarsall_hint = None
   if args.vs_install_dir:
@@ -164,6 +175,8 @@ def run_wix4(args) -> None:
       '-out', args.output,
       '-src', args.wxs_path,
   ]
+  if installer_product_version is not None:
+    commands += ['-define', f'ProductVersion={installer_product_version}']
   if args.mozc_tip64arm and args.mozc_tip64x:
     mozc_tip64arm = pathlib.Path(args.mozc_tip64arm).resolve()
     mozc_tip64x = pathlib.Path(args.mozc_tip64x).resolve()
@@ -180,6 +193,10 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output', type=str)
   parser.add_argument('--version_file', type=str)
+  parser.add_argument(
+      '--product_version_file', type=str,
+      help='Generated product_version.json manifest for Mozc branding',
+  )
   parser.add_argument('--mozc_tool', type=str)
   parser.add_argument('--mozc_renderer', type=str)
   parser.add_argument('--mozc_server', type=str)

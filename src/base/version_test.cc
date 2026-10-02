@@ -29,16 +29,40 @@
 
 #include "base/version.h"
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "absl/strings/str_format.h"
+#include "absl/strings/str_split.h"
+#include "base/number_util.h"
 #include "testing/gunit.h"
 
 // Import the generated version_def.h.
+#include "base/product_version_def.h"
 #include "base/version_def.h"
 
 namespace mozc {
 
 TEST(VersionTest, BasicTest) {
   EXPECT_EQ(Version::GetMozcVersion(), version::kMozcVersion);
+}
+
+TEST(VersionTest, ProductVersion) {
+  const std::string product = Version::GetProductVersion();
+  const std::string msi = Version::GetMsiProductVersion();
+  EXPECT_EQ(product, version::kProductVersion);
+  EXPECT_EQ(msi, version::kMsiProductVersion);
+  const std::vector<std::string> product_fields = absl::StrSplit(product, '.');
+  const std::vector<std::string> msi_fields = absl::StrSplit(msi, '.');
+  ASSERT_EQ(product_fields.size(), 3);
+  ASSERT_EQ(msi_fields.size(), 3);
+  EXPECT_EQ(NumberUtil::SimpleAtoi(msi_fields[0]),
+            100 + NumberUtil::SimpleAtoi(product_fields[0]));
+  EXPECT_EQ(msi_fields[1], product_fields[1]);
+  EXPECT_EQ(msi_fields[2], product_fields[2]);
+  const std::string engine = Version::GetMozcVersion();
+  EXPECT_EQ(std::count(engine.begin(), engine.end(), '.'), 3);
 }
 
 TEST(VersionTest, VersionNumberTest) {

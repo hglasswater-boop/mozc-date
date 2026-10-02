@@ -51,22 +51,51 @@ function Get-InstallerErrorMessage([int]$ExitCode) {
   }
 }
 
+function Get-MsiVersion([string]$Version) {
+  if ($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?\z') {
+    throw "バージョンの形式が正しくありません: $Version"
+  }
+  $major = [long]$Matches[1]
+  $minor = [long]$Matches[2]
+  $build = [long]$Matches[3]
+  if ($Matches.ContainsKey(4)) {
+    # Historical v3/v4 releases used the Mozc version as ProductVersion.
+    # Windows Installer ignores the fourth component.
+    if ($major -ge 100) {
+      throw "旧形式のバージョンの範囲が正しくありません: $Version"
+    }
+  }
+  else {
+    $major += 100
+  }
+  if ($major -gt 255 -or $minor -gt 255 -or $build -gt 65535) {
+    throw "Windows Installer のバージョンの範囲を超えています: $Version"
+  }
+  return [version]"$major.$minor.$build"
+}
+
 $release = Get-LatestRelease
 $tag = [string]$release.tag_name
 if ([string]::IsNullOrWhiteSpace($tag)) {
   throw "Release のタグ名を取得できませんでした。"
 }
 
-$releaseVersion = $tag -replace '^v', ''
-if ($releaseVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+if ($tag -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?\z') {
   throw "Release タグの形式が正しくありません: $tag"
 }
+$releaseVersion = $tag.Substring(1)
+$releaseMsiVersion = Get-MsiVersion $releaseVersion
 if ($Check) {
-  Write-Output $releaseVersion
+  # About compares MSI ordering so a historical v4 release never looks newer
+  # than an installed v0 release (whose MSI major version is 100).
+  [pscustomobject]@{
+    product_version = $releaseVersion
+    msi_version = $releaseMsiVersion.ToString()
+  } | ConvertTo-Json -Compress
   exit 0
 }
 if (-not $Force -and -not [string]::IsNullOrWhiteSpace($CurrentVersion) -and
-    [version]$releaseVersion -le [version]$CurrentVersion) {
+    $releaseMsiVersion -le (Get-MsiVersion $CurrentVersion)) {
   Write-Host "最新版です: $CurrentVersion"
   exit 0
 }
