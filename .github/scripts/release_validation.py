@@ -15,6 +15,7 @@ TEST_TARGETS = (
     "//win32/installer:build_installer_test",
     "//win32/tip:build_tip_forwarder_dll_test",
     "//base:version_test",
+    "//rewriter:version_rewriter_test",
     "//config:config_handler_test",
     "//rewriter:date_rewriter_test",
     "//rewriter:english_word_dictionary_rewriter_test",
