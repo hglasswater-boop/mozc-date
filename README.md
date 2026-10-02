@@ -1,4 +1,4 @@
-# Mozc Date English
+# mozc-date
 
 公開版の [Mozc](https://github.com/google/mozc) を起点にした Windows x64 向けの派生版です。
 製品版 Google 日本語入力のソースではありません。
@@ -9,15 +9,15 @@ GitHub Release 経由の自動更新です。既存の Mozkey-date とは別リ�
 
 ## 入手・ビルド
 
-Windows x64 の MSI は [Releases](https://github.com/hglasswater-boop/mozkey-date-minimal/releases)
+Windows x64 の MSI は [Releases](https://github.com/hglasswater-boop/mozc-date/releases)
 から入手できます。公開前のビルド成果物は
-[Windows x64 CI](https://github.com/hglasswater-boop/mozkey-date-minimal/actions/workflows/windows.yaml)
+[Windows x64 CI](https://github.com/hglasswater-boop/mozc-date/actions/workflows/windows.yaml)
 にあります。ローカルビルドは [公式の Windows 手順](docs/build_mozc_in_windows.md)
 を参照してください。
 
 ## 更新
 
-「Mozc について」画面で「更新を確認」を押すと、このリポジトリの最新 Release を
+「mozc-date について」画面で「更新を確認」を押すと、このリポジトリの最新 Release を
 確認します。更新可能なときは「更新する」から x64 MSI をダウンロードし、SHA-256 を
 照合してから Windows Installer を起動します。更新時に管理者権限の確認が表示されます。
 

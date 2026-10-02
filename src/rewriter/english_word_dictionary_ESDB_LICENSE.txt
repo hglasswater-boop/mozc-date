@@ -22,6 +22,6 @@ credit as he is the author of 12dicts and a major contributor to ENABLE2K.  In
 addition, he gave me an incredible amount of feedback and created a number of
 special lists in order to help improve the overall quality of ESDB.
 
-The Mozkey English input assistance word table is generated from the American
+The mozc-date English input assistance word table is generated from the American
 English ESDB word lists up to size 70 and variant level 1. No Australian (D/AU)
 or size >80 data is used.

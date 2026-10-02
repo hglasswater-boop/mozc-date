@@ -385,7 +385,7 @@ bool IsDateCandidateDescription(const std::string& description) {
 }
 
 // DateRewriter intentionally keeps the legacy format parser small.  This
-// post-processor expands mozkey-date's additional date-format tokens after
+// post-processor expands mozc-date's additional date-format tokens after
 // DateRewriter has generated both custom and canonical date candidates.  The
 // canonical YYYY/MM/DD candidate in each description group supplies its target
 // date. Weekday inputs can therefore keep all three weeks independently, just

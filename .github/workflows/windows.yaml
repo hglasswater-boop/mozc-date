@@ -73,7 +73,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: src/third_party/qt
-          key: mozkey-qt-${{ runner.os }}-${{ runner.arch }}-windows-2025-x64-release-6.9.1-${{ hashFiles('src/build_tools/build_qt.py', 'src/build_tools/update_deps.py', 'src/build_tools/vs_util.py') }}
+          key: mozc-date-qt-${{ runner.os }}-${{ runner.arch }}-windows-2025-x64-release-6.9.1-${{ hashFiles('src/build_tools/build_qt.py', 'src/build_tools/update_deps.py', 'src/build_tools/vs_util.py') }}
 
       - name: Build Qt for x64
         if: steps.qt-cache.outputs.cache-hit != 'true'
@@ -133,10 +133,10 @@ jobs:
           if ($productVersion -ne $expectedVersion) {
             throw "MSI ProductVersion '$productVersion' does not match tag version '$expectedVersion'"
           }
-          if ($productName -ne 'Mozc Date English') {
+          if ($productName -ne 'mozc-date') {
             throw "Unexpected MSI ProductName: '$productName'"
           }
-          if ($manufacturer -ne 'Mozc Date English Project' -or $publisher -ne 'Mozc Date English Project') {
+          if ($manufacturer -ne 'mozc-date Project' -or $publisher -ne 'mozc-date Project') {
             throw "Unexpected MSI publisher: Property='$manufacturer', Summary='$publisher'"
           }
           Write-Output "Verified MSI ProductVersion=$productVersion, ProductName=$productName, Publisher=$publisher"
@@ -156,4 +156,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME 'Mozc64_x64.msi' 'Mozc64_x64.msi.sha256' 'src/gui/about_dialog/update-mozc-minimal.ps1' --title "Mozc Date English $env:GITHUB_REF_NAME" --generate-notes
+          gh release create $env:GITHUB_REF_NAME 'Mozc64_x64.msi' 'Mozc64_x64.msi.sha256' 'src/gui/about_dialog/update-mozc-date.ps1' --title "mozc-date $env:GITHUB_REF_NAME" --generate-notes

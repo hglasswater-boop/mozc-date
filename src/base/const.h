@@ -35,7 +35,7 @@ namespace mozc {
 inline constexpr char kProductNameInEnglish[] = "Google Japanese Input";
 #define kProductPrefix "GoogleJapaneseInput"
 #else  // GOOGLE_JAPANESE_INPUT_BUILD
-inline constexpr char kProductNameInEnglish[] = "Mozc Date English";
+inline constexpr char kProductNameInEnglish[] = "mozc-date";
 #define kProductPrefix "Mozc"
 #endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
@@ -131,7 +131,7 @@ inline constexpr wchar_t kIMEUIWndClassName[] = L"MozcUIWindow";
 inline constexpr char kIPCPrefix[] = "\\\\.\\pipe\\mozc.";
 inline constexpr wchar_t kCandidateUIDescription[] = L"MozcCandidateUI";
 inline constexpr wchar_t kConfigurationDisplayname[] =
-    L"Mozc Date English Configuration";
+    L"mozc-date Configuration";
 inline constexpr wchar_t kMozcRegKey[] = L"Software\\Mozc Project\\Mozc";
 inline constexpr wchar_t kElevatedProcessDisabledKey[] =
     L"Software\\Policies\\Mozc Project\\Mozc\\Preferences";
