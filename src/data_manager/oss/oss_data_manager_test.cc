@@ -51,7 +51,8 @@ class OssDataManagerTest : public DataManagerTestBase {
             1,
             mozc::testing::GetSourceFilesInDirOrDie(
                 {"data", "dictionary_oss"},
-                {"aux_dictionary.txt", "dictionary.txt"}
+                {"aux_dictionary.txt", "dictionary.txt",
+                 "katakana_english_dictionary.txt"}
                 ),
             mozc::testing::GetSourceFilesInDirOrDie(
                 {"data", "dictionary_oss"}, {"suggestion_filter.txt"})) {

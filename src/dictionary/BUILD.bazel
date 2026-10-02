@@ -31,6 +31,7 @@
 #   The implementation of dictionaries used in Mozc.
 
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
+load("@rules_python//python:defs.bzl", "py_test")
 load(
     "//:build_defs.bzl",
     "mozc_cc_binary",
@@ -228,6 +229,7 @@ mozc_cc_library(
     name = "dictionary_token",
     hdrs = ["dictionary_token.h"],
     visibility = [
+        "//engine:__pkg__",
         "//converter:__subpackages__",
         "//dictionary/system:__subpackages__",
         # For //prediction:dictionary_predictor.
@@ -829,5 +831,18 @@ run_binary(
     visibility = [
         "//data:__subpackages__",
         "//dictionary:__subpackages__",
+    ],
+)
+mozc_py_binary(
+    name = "gen_katakana_english_dictionary",
+    srcs = ["gen_katakana_english_dictionary.py"],
+    visibility = ["//data/dictionary_oss:__pkg__"],
+)
+
+py_test(
+    name = "gen_katakana_english_dictionary_test",
+    srcs = [
+        "gen_katakana_english_dictionary.py",
+        "gen_katakana_english_dictionary_test.py",
     ],
 )

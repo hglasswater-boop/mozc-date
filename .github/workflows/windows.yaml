@@ -40,6 +40,12 @@ jobs:
             Pop-Location
           }
 
+      - name: Test reference dictionary import
+        shell: pwsh
+        run: |
+          python -m unittest discover --start-directory tools/dictionary --pattern 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { throw 'Dictionary import tests failed.' }
+
       - name: Test updater version compatibility
         shell: pwsh
         run: pwsh -NoProfile -File .github/scripts/test-updater.ps1
