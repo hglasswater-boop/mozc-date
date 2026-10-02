@@ -394,16 +394,42 @@ bool AddPrefixCandidates(absl::string_view raw_input,
             });
 
   size_t insert_position = std::min<size_t>(1, segment->candidates_size());
-  size_t inserted = 0;
+  std::vector<std::string> selected_values;
+  bool modified = false;
   for (const RankedWord& word : matches) {
-    const size_t old_position = insert_position;
-    insert_position = InsertCandidate(segment, insert_position, raw_input, word,
-                                      "英単語補完", false);
-    if (insert_position != old_position && ++inserted >= kMaxPrefixCandidates) {
+    const std::string value = ApplyInputCase(raw_input, word.value);
+    if (std::find(selected_values.begin(), selected_values.end(), value) !=
+        selected_values.end()) {
+      continue;
+    }
+    if (selected_values.size() >= kMaxPrefixCandidates) {
       break;
     }
+    selected_values.push_back(value);
+
+    // Tab reuses the previous suggestion segment before rewriting it again.
+    // Existing completions must occupy their ranked slots and count towards
+    // the limit; otherwise new matches push them off the first candidate page.
+    size_t existing = 0;
+    while (existing < segment->candidates_size() &&
+           segment->candidate(existing).value != value) {
+      ++existing;
+    }
+    if (existing < segment->candidates_size()) {
+      if (existing >= insert_position) {
+        if (existing != insert_position) {
+          segment->move_candidate(existing, insert_position);
+          modified = true;
+        }
+        ++insert_position;
+      }
+      continue;
+    }
+    insert_position = InsertCandidate(segment, insert_position, raw_input, word,
+                                      "英単語補完", false);
+    modified = true;
   }
-  return inserted > 0;
+  return modified;
 }
 
 bool AddSpellingCandidates(absl::string_view raw_input,
