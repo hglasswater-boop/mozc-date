@@ -39,7 +39,11 @@ inline constexpr char kProductNameInEnglish[] = "mozc-date";
 #define kProductPrefix "Mozc"
 #endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
+#ifdef GOOGLE_JAPANESE_INPUT_BUILD
 inline constexpr char kVersionRewriterVersionPrefix[] = kProductPrefix "-";
+#else  // GOOGLE_JAPANESE_INPUT_BUILD
+inline constexpr char kVersionRewriterVersionPrefix[] = "mozc-date-";
+#endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
 #if defined(_WIN32)
 // Safe length of IME name in terms of IME_ESC_IME_NAME request.

@@ -107,9 +107,9 @@ TEST_F(VersionRewriterTest, MobileEnvironmentTest) {
 TEST_F(VersionRewriterTest, RewriteTestVersion) {
 #ifdef GOOGLE_JAPANESE_INPUT_BUILD
   constexpr absl::string_view kVersionPrefixExpected = "GoogleJapaneseInput-";
-  constexpr absl::string_view kVersionPrefixUnexpected = "Mozc-";
+  constexpr absl::string_view kVersionPrefixUnexpected = "mozc-date-";
 #else   // GOOGLE_JAPANESE_INPUT_BUILD
-  constexpr absl::string_view kVersionPrefixExpected = "Mozc-";
+  constexpr absl::string_view kVersionPrefixExpected = "mozc-date-";
   constexpr absl::string_view kVersionPrefixUnexpected = "GoogleJapaneseInput-";
 #endif  // GOOGLE_JAPANESE_INPUT_BUILD
 
