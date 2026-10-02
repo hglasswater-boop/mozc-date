@@ -32,19 +32,26 @@ def extract(text):
     result = set()
     for line in text.splitlines():
         fields = line.lstrip("\ufeff").split("\t")
-        if len(fields) != 4:
+        if len(fields) == 3:
+            # One source file uses katakana keys and omits the comment column.
+            key, value, _ = fields
+            original = key
+        elif len(fields) == 4:
+            key, value, _, original = fields
+        else:
             continue
-        key, value, _, original = fields
         original = unicodedata.normalize("NFKC", original)
         key = hiragana(key)
-        if not re.fullmatch(r"[ァ-ヶー・]{3,40}", original):
+        if not re.fullmatch(r"[ァ-ヶー・]{2,40}", original):
             continue
-        if not re.fullmatch(r"[ぁ-ゖー・]{3,40}", key):
+        if not re.fullmatch(r"[ぁ-ゖー・]{2,40}", key):
             continue
         if hiragana(original) != key:
             continue
         # Same alphabet as Mozc's IsEnglishTransliteration; no gloss punctuation.
         if not re.fullmatch(r"[A-Za-z]+(?:[ '-][A-Za-z]+){0,3}", value):
+            continue
+        if len(key) == 2 and not re.fullmatch(r"[A-Za-z]{3,}", value):
             continue
         result.add((key, value))
         # Only terminal long vowels: dropping internal ones creates false readings.

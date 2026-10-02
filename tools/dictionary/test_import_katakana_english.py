@@ -13,12 +13,23 @@ class ImportTest(unittest.TestCase):
         for key, word in [("こんとろーる", "control"),
                           ("こんぴゅーた", "computer"),
                           ("こんぴゅーたー", "computer"),
-                          ("さーば", "server"), ("さーばー", "server")]:
+                          ("さーば", "server"), ("さーばー", "server"),
+                          ("ばす", "bus"), ("こあ", "core"), ("かー", "car")]:
             self.assertIn((key, word), entries)
 
     def test_long_vowel_alias_only_at_end(self):
         entries = extract("さーばー\tserver\t名詞\tサーバー\n")
         self.assertEqual(entries, {("さーばー", "server"), ("さーば", "server")})
+
+    def test_short_loanwords_exclude_short_exclamations(self):
+        entries = extract("ばす\tbus\t名詞\tバス\n"
+                          "あー\tOh\t名詞\tアー\n")
+        self.assertEqual(entries, {("ばす", "bus")})
+
+    def test_three_column_katakana_source(self):
+        self.assertEqual(extract("バス\tbus\t名詞\n"
+                                 "バス停\tbus stop\t名詞\n"),
+                         {("ばす", "bus")})
 
     def test_filters_definitions_and_japanese_translations(self):
         entries = extract(

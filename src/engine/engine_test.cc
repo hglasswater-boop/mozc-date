@@ -134,13 +134,16 @@ TEST_F(EngineTest, KatakanaEnglishDictionary) {
     absl::string_view key;
     absl::string_view english;
   };
-  const std::array<Example, 6> examples = {{
+  const std::array<Example, 9> examples = {{
       {"こんとろーる", "control"},
       {"こんぴゅーた", "computer"},
       {"こんぴゅーたー", "computer"},
       {"さーば", "server"},
       {"さーばー", "server"},
       {"あいす", "Ice"},
+      {"ばす", "bus"},
+      {"こあ", "core"},
+      {"かー", "car"},
   }};
   class Values : public dictionary::DictionaryInterface::Callback {
    public:
