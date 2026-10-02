@@ -1,4 +1,4 @@
-# Copyright 2026 Mozc Date English Project
+# Copyright 2026 mozc-date Project
 # All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -78,7 +78,7 @@ class BuildInstallerTest(unittest.TestCase):
     )
 
   def test_mozc_msi_uses_generated_product_version(self):
-    with mock.patch.dict(os.environ, {'MOZKEY_PRODUCT_VERSION': '9.9.9'}):
+    with mock.patch.dict(os.environ, {'MOZC_DATE_PRODUCT_VERSION': '9.9.9'}):
       build_installer.run_wix4(self.args)
     definitions = self.definitions()
     self.assertEqual(definitions['ProductVersion'], '100.2.1')

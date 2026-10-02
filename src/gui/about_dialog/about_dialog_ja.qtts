@@ -15,8 +15,8 @@
     </message>
     <message utf8="true">
         <location filename="about_dialog.ui" line="80"/>
-        <source>Copyright 2026 Mozc Date English Project.</source>
-        <translation>Copyright 2026 Mozc Date English Project.</translation>
+        <source>Copyright 2026 mozc-date Project.</source>
+        <translation>Copyright 2026 mozc-date Project.</translation>
     </message>
     <message>
         <location filename="about_dialog.ui" line="95"/>

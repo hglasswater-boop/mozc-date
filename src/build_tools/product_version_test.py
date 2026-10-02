@@ -1,4 +1,4 @@
-# Copyright 2026 Mozc Date English Project
+# Copyright 2026 mozc-date Project
 # All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -65,25 +65,25 @@ class ProductVersionTest(unittest.TestCase):
       )
       self.assertEqual(
           product_version.read_version(
-              source, environ={'MOZKEY_PRODUCT_VERSION': ''}
+              source, environ={'MOZC_DATE_PRODUCT_VERSION': ''}
           ).product_version,
           '0.0.0',
       )
       self.assertEqual(
           product_version.read_version(
-              source, environ={'MOZKEY_PRODUCT_VERSION': '0.2.1'}
+              source, environ={'MOZC_DATE_PRODUCT_VERSION': '0.2.1'}
           ).product_version,
           '0.2.1',
       )
       self.assertEqual(
           product_version.read_version(
-              source, '0.2.2', {'MOZKEY_PRODUCT_VERSION': 'bad'}
+              source, '0.2.2', {'MOZC_DATE_PRODUCT_VERSION': 'bad'}
           ).product_version,
           '0.2.2',
       )
       with self.assertRaises(ValueError):
         product_version.read_version(
-            source, environ={'MOZKEY_PRODUCT_VERSION': 'bad'}
+            source, environ={'MOZC_DATE_PRODUCT_VERSION': 'bad'}
         )
       with self.assertRaises(ValueError):
         product_version.read_version(source, '', {})
@@ -98,7 +98,7 @@ class ProductVersionTest(unittest.TestCase):
           '--version_file', str(source), '--header', str(header),
           '--output', str(output),
       ]
-      with mock.patch.dict(os.environ, {'MOZKEY_PRODUCT_VERSION': '0.2.1'}):
+      with mock.patch.dict(os.environ, {'MOZC_DATE_PRODUCT_VERSION': '0.2.1'}):
         product_version.main(args)
       manifest = json.loads(output.read_text(encoding='utf-8'))
       self.assertEqual(
@@ -116,7 +116,7 @@ class ProductVersionTest(unittest.TestCase):
       previous_header = header.read_bytes()
       previous_output = output.read_bytes()
       with (
-          mock.patch.dict(os.environ, {'MOZKEY_PRODUCT_VERSION': 'bad'}),
+          mock.patch.dict(os.environ, {'MOZC_DATE_PRODUCT_VERSION': 'bad'}),
           contextlib.redirect_stderr(io.StringIO()),
           self.assertRaises(SystemExit),
       ):

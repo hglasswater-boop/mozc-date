@@ -1,4 +1,4 @@
-# Copyright 2026 Mozc Date English Project
+# Copyright 2026 mozc-date Project
 # All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.

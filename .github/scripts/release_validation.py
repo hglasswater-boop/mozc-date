@@ -108,10 +108,10 @@ def check_generated_versions(expected, generated, header, msi):
     if msi.get("product_version") != expected["msi_version"]:
         raise ValueError("Built MSI ProductVersion does not match the product version mapping")
     if str(msi.get("upgrade_code", "")).strip("{}").upper() != UPGRADE_CODE:
-        raise ValueError("Built MSI UpgradeCode changed; installed Mozkey compatibility is required")
-    if msi.get("product_name") != "Mozc Date English":
+        raise ValueError("Built MSI UpgradeCode changed; installed mozc-date and legacy-version compatibility is required")
+    if msi.get("product_name") != "mozc-date":
         raise ValueError("Unexpected built MSI ProductName")
-    if msi.get("manufacturer") != "Mozc Date English Project" or msi.get("publisher") != "Mozc Date English Project":
+    if msi.get("manufacturer") != "mozc-date Project" or msi.get("publisher") != "mozc-date Project":
         raise ValueError("Unexpected built MSI publisher")
     expected_pe = expected["msi_version"] + ".0"
     for field in ("files", "pe_files"):
@@ -153,7 +153,7 @@ def configure(args):
     write_json(args.pe_targets, list(PE_TARGETS))
     # Never replace MOZC_VERSION: it remains the independent engine version.
     with Path(args.env_file).open("a", encoding="utf-8") as output:
-        output.write(f"MOZKEY_PRODUCT_VERSION={expected['product_version']}\n")
+        output.write(f"MOZC_DATE_PRODUCT_VERSION={expected['product_version']}\n")
 
 
 def verify(args):

@@ -2,14 +2,14 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$fixtureDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ('mozkey-msi-metadata-test-' + [guid]::NewGuid().ToString('N'))
+$fixtureDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ('mozc-date-msi-metadata-test-' + [guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $fixtureDirectory
 $fixtureMsi = Join-Path $fixtureDirectory 'fixture.msi'
 $properties = [ordered]@{
   ProductVersion = '100.2.1'
   UpgradeCode = '{DD94B570-B5E2-4100-9D42-61930C611D8A}'
-  ProductName = 'Mozc Date English'
-  Manufacturer = 'Mozc Date English Project'
+  ProductName = 'mozc-date'
+  Manufacturer = 'mozc-date Project'
 }
 
 function Invoke-MsiQuery($Database, [string]$Query) {
@@ -75,7 +75,7 @@ finally {
   $resolvedFixture = [System.IO.Path]::GetFullPath($fixtureDirectory)
   $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
   if (-not $resolvedFixture.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or
-      [System.IO.Path]::GetFileName($resolvedFixture) -notmatch '^mozkey-msi-metadata-test-[0-9a-f]{32}$') {
+      [System.IO.Path]::GetFileName($resolvedFixture) -notmatch '^mozc-date-msi-metadata-test-[0-9a-f]{32}$') {
     throw 'Unexpected metadata fixture cleanup path.'
   }
   Remove-Item -LiteralPath $resolvedFixture -Recurse -Force

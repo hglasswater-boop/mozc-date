@@ -20,9 +20,9 @@ class ReleaseValidationTest(unittest.TestCase):
         self.msi = {
             "product_version": "100.2.1",
             "upgrade_code": "{" + validation.UPGRADE_CODE + "}",
-            "product_name": "Mozc Date English",
-            "manufacturer": "Mozc Date English Project",
-            "publisher": "Mozc Date English Project",
+            "product_name": "mozc-date",
+            "manufacturer": "mozc-date Project",
+            "publisher": "mozc-date Project",
             "files": [{"name": name, "version": "100.2.1.0"} for name in sorted(validation.INSTALLED_BINARIES)],
             "pe_files": [{"name": name, "file_version": "100.2.1.0", "product_version": "100.2.1.0"}
                          for name in sorted(validation.INSTALLED_BINARIES | {"mozc_installer_helper.dll"})],
@@ -115,7 +115,7 @@ class ReleaseValidationTest(unittest.TestCase):
                                    env_file=root / "env", output=root / "version.json",
                                    test_targets=root / "targets.json", pe_targets=root / "pe.json")
             validation.configure(args)
-            self.assertEqual((root / "env").read_text(), "MOZKEY_PRODUCT_VERSION=0.0.0\n")
+            self.assertEqual((root / "env").read_text(), "MOZC_DATE_PRODUCT_VERSION=0.0.0\n")
             self.assertEqual(validation.read_json(root / "targets.json"), list(validation.TEST_TARGETS))
 
     def test_manifest_refuses_unverified_feature_target_or_wrong_commit(self):

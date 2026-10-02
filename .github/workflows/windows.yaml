@@ -80,7 +80,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: src/third_party/qt
-          key: mozkey-qt-${{ runner.os }}-${{ runner.arch }}-windows-2025-x64-release-6.9.1-${{ hashFiles('src/build_tools/build_qt.py', 'src/build_tools/update_deps.py', 'src/build_tools/vs_util.py') }}
+          key: mozc-date-qt-${{ runner.os }}-${{ runner.arch }}-windows-2025-x64-release-6.9.1-${{ hashFiles('src/build_tools/build_qt.py', 'src/build_tools/update_deps.py', 'src/build_tools/vs_util.py') }}
 
       - name: Build Qt for x64
         if: steps.qt-cache.outputs.cache-hit != 'true'
@@ -101,7 +101,7 @@ jobs:
           ANDROID_NDK_HOME: ""
         run: |
           $targets = @(Get-Content -LiteralPath '../test-targets.json' -Raw | ConvertFrom-Json)
-          bazelisk test @targets --action_env=MOZKEY_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
+          bazelisk test @targets --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
           if ($LASTEXITCODE -ne 0) { throw 'Required Windows tests failed.' }
 
       - name: Build x64 MSI
@@ -110,11 +110,11 @@ jobs:
         env:
           ANDROID_NDK_HOME: ""
         run: |
-          bazelisk build package //base:product_version_json --action_env=MOZKEY_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
+          bazelisk build package //base:product_version_json --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
           if ($LASTEXITCODE -ne 0) { throw 'Windows MSI build failed.' }
           $targets = @(Get-Content -LiteralPath '../pe-targets.json' -Raw | ConvertFrom-Json)
           $query = 'set(' + ($targets -join ' ') + ')'
-          $binaryPaths = @(bazelisk cquery $query --output=files --action_env=MOZKEY_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64)
+          $binaryPaths = @(bazelisk cquery $query --output=files --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64)
           if ($LASTEXITCODE -ne 0) { throw 'Could not locate built PE binaries.' }
           $binaryPaths | Set-Content -LiteralPath '../built-pe-paths.txt' -Encoding utf8
 
@@ -165,4 +165,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME 'Mozc64_x64.msi' 'Mozc64_x64.msi.sha256' 'release-manifest.json' 'src/gui/about_dialog/update-mozc-minimal.ps1' --title "Mozc Date English $env:GITHUB_REF_NAME" --generate-notes --latest
+          gh release create $env:GITHUB_REF_NAME 'Mozc64_x64.msi' 'Mozc64_x64.msi.sha256' 'release-manifest.json' 'src/gui/about_dialog/update-mozc-date.ps1' --title "mozc-date $env:GITHUB_REF_NAME" --generate-notes --latest

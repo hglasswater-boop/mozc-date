@@ -2,8 +2,8 @@
 # installer. No network access or installation is performed by these tests.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$updaterPath = (Resolve-Path (Join-Path $PSScriptRoot '../../src/gui/about_dialog/update-mozc-minimal.ps1')).Path
-$testRoot = Join-Path ([IO.Path]::GetTempPath()) ('mozkey-updater-tests-' + [Guid]::NewGuid().ToString('N'))
+$updaterPath = (Resolve-Path (Join-Path $PSScriptRoot '../../src/gui/about_dialog/update-mozc-date.ps1')).Path
+$testRoot = Join-Path ([IO.Path]::GetTempPath()) ('mozc-date-updater-tests-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $testRoot
 $wrapperPath = Join-Path $testRoot 'run-updater.ps1'
 $wrapper = @'

@@ -1,4 +1,4 @@
-# Copyright 2026 Mozc Date English Project
+# Copyright 2026 mozc-date Project
 # All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -39,7 +39,7 @@ class ForwarderVersionTest(unittest.TestCase):
     self.assertIn('PRODUCTVERSION 100,2,1,0\n', output)
     self.assertIn('VALUE "FileVersion", "100.2.1.0"', output)
     self.assertIn('VALUE "ProductVersion", "0.2.1"', output)
-    self.assertIn('VALUE "ProductName", "Mozc Date English"', output)
+    self.assertIn('VALUE "ProductName", "mozc-date"', output)
     self.assertIn('VALUE "OriginalFilename", "mozc_tip64x.dll"', output)
     self.assertNotIn('3.34.6239.102', output)
 

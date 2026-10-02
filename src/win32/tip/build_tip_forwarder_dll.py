@@ -111,14 +111,14 @@ class ForwarderInfo:
   @property
   def file_description(self) -> str:
     return {
-        'Mozc': 'Mozc TIP Module Forwarder',
+        'Mozc': 'mozc-date TIP Module Forwarder',
         'GoogleJapaneseInput': 'Google 日本語入力 TIP モジュール フォワーダー',
     }[self.branding]
 
   @property
   def product_name(self) -> str:
     return {
-        'Mozc': 'Mozc Date English',
+        'Mozc': 'mozc-date',
         'GoogleJapaneseInput': 'Google 日本語入力',
     }[self.branding]
 
@@ -137,6 +137,9 @@ class ForwarderInfo:
     internal_name = str(pathlib.Path(original_file_name).stem)
     product_name = self.product_name
     product_copyright = 'Google LLC'
+    company_name = (
+        'mozc-date Project' if self.branding == 'Mozc' else product_copyright
+    )
 
     return '\n'.join([
         '#include "winres.h"',
@@ -159,7 +162,7 @@ class ForwarderInfo:
         '    BEGIN',
         '        BLOCK "041104b0"',
         '        BEGIN',
-        f'            VALUE "CompanyName", "{product_copyright}"',
+        f'            VALUE "CompanyName", "{company_name}"',
         f'            VALUE "FileDescription", "{file_description}"',
         f'            VALUE "FileVersion", "{dot_separated_version}"',
         f'            VALUE "InternalName", "{internal_name}"',

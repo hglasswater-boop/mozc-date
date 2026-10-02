@@ -56,7 +56,7 @@ mozc_qt_rcc(
     srcs = [
         "about_dialog_en.qm",
         "about_dialog_ja.qm",
-        "update-mozc-minimal.ps1",
+        "update-mozc-date.ps1",
         "//data/images:product_icon_32bpp-128.png",
         "//gui/base:tr_en.qm",
         "//gui/base:tr_ja.qm",

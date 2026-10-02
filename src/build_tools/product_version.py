@@ -1,11 +1,11 @@
-# Copyright 2026 Mozc Date English Project
+# Copyright 2026 mozc-date Project
 # All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Generates the product version separately from Mozc's engine version.
 
-MOZKEY_PRODUCT_VERSION overrides product_version.txt for release builds. The
+MOZC_DATE_PRODUCT_VERSION overrides product_version.txt for release builds. The
 three-component version is deliberately canonical: aliases such as 00.2.1
 must not become distinct Git tags for the same Windows Installer version.
 """
@@ -84,7 +84,7 @@ def read_version(
     return parse_version(version_override)
   if environ is None:
     environ = os.environ
-  environment_version = environ.get('MOZKEY_PRODUCT_VERSION', '')
+  environment_version = environ.get('MOZC_DATE_PRODUCT_VERSION', '')
   if environment_version:
     return parse_version(environment_version)
   return parse_version(version_file.read_text(encoding='utf-8').strip())
