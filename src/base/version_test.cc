@@ -55,7 +55,10 @@ TEST(VersionTest, ProductVersion) {
   EXPECT_EQ(msi, version::kMsiProductVersion);
   const std::vector<std::string> product_fields = absl::StrSplit(product, '.');
   const std::vector<std::string> msi_fields = absl::StrSplit(msi, '.');
-  ASSERT_EQ(product_fields.size(), 3);
+  ASSERT_TRUE(product_fields.size() == 3 || product_fields.size() == 4);
+  if (product_fields.size() == 4) {
+    EXPECT_EQ(product_fields[3], "0");
+  }
   ASSERT_EQ(msi_fields.size(), 3);
   EXPECT_EQ(NumberUtil::SimpleAtoi(msi_fields[0]),
             100 + NumberUtil::SimpleAtoi(product_fields[0]));
