@@ -203,6 +203,44 @@ TEST_F(EngineTest, KatakanaEnglishDictionary) {
       EXPECT_EQ(found, enabled);
     }
   }
+  // Confirm each reviewed supplement entry can be selected by the actual
+  // converter, including compounds and the terminal-long-vowel alias.
+  const std::array<Example, 6> modern_examples = {{
+      {"くろーど", "Claude"},
+      {"くろーどこーど", "Claude Code"},
+      {"でぃーぷしーく", "DeepSeek"},
+      {"ばいぶこーでぃんぐ", "vibe coding"},
+      {"えむしーぴー", "MCP"},
+      {"えむしーぴ", "MCP"},
+  }};
+  for (const auto& example : modern_examples) {
+    for (bool enabled : {true, false}) {
+      for (bool ascii_completion_enabled : {true, false}) {
+        config::Config config;
+        config.set_use_t13n_conversion(enabled);
+        config.set_use_english_word_dictionary(ascii_completion_enabled);
+        const auto request = ConversionRequestBuilder()
+                                 .SetConfig(config)
+                                 .SetKey(example.key)
+                                 .Build();
+        Segments segments;
+        ASSERT_TRUE(engine_->GetConverter()->StartConversion(request, &segments))
+            << example.key;
+        bool found = false;
+        for (int segment_index = 0;
+             segment_index < segments.conversion_segments_size();
+             ++segment_index) {
+          const auto& segment = segments.conversion_segment(segment_index);
+          for (int candidate_index = 0;
+               candidate_index < segment.candidates_size(); ++candidate_index) {
+            found |= segment.candidate(candidate_index).value == example.english;
+          }
+        }
+        EXPECT_EQ(found, enabled)
+            << example.key << " ascii=" << ascii_completion_enabled;
+      }
+    }
+  }
 }
 
 // Tests the interaction with DataLoader for successful Engine
