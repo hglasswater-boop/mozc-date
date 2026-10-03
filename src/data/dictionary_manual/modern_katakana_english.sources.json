@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "manifest": "modern_katakana_english.json",
+  "manifest_sha256": "5b467fa24b34028fad42522dee3ca77e8f7536ca11f10150702e74b86b155fd4",
+  "manifest_sha256_scope": "committed authored manifest bytes only",
+  "external_webpages_hashed": false,
+  "entry_count": 5,
+  "mapping_count": 6,
+  "tsv_sha256": "a150687bde7eae19fd8264b8c812dbae45dd30ff6f6fb54f7de3cbd7b7bdb6f7"
+}

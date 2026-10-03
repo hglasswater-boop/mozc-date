@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "reading": "くろーど",
+      "spelling": "Claude",
+      "source_url": "https://claude.com/",
+      "checked_on": "2026-10-03",
+      "reading_note": "Project-chosen Japanese transliteration."
+    },
+    {
+      "reading": "くろーどこーど",
+      "spelling": "Claude Code",
+      "source_url": "https://code.claude.com/docs/en/overview",
+      "checked_on": "2026-10-03",
+      "reading_note": "Project-chosen Japanese transliteration."
+    },
+    {
+      "reading": "でぃーぷしーく",
+      "spelling": "DeepSeek",
+      "source_url": "https://deepseek.com/",
+      "checked_on": "2026-10-03",
+      "reading_note": "Project-chosen Japanese transliteration."
+    },
+    {
+      "reading": "ばいぶこーでぃんぐ",
+      "spelling": "vibe coding",
+      "source_url": "https://www.collinsdictionary.com/us/dictionary/english/vibe-coding",
+      "checked_on": "2026-10-03",
+      "reading_note": "Project-chosen Japanese transliteration; Collins confirms English spelling only."
+    },
+    {
+      "reading": "えむしーぴー",
+      "spelling": "MCP",
+      "source_url": "https://modelcontextprotocol.io/introduction",
+      "checked_on": "2026-10-03",
+      "reading_note": "Project-chosen letter-name reading for Model Context Protocol."
+    }
+  ]
+}
