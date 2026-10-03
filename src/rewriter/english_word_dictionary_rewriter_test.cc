@@ -31,6 +31,7 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "config/config_handler.h"
@@ -189,6 +190,73 @@ TEST(EnglishWordDictionaryRewriterTest, UsesComposerRawInputForRomajiTyping) {
 
   EXPECT_TRUE(rewriter.Rewrite(request, &segments));
   EXPECT_NE(FindCandidate(*segment, "GitHub"), nullptr);
+}
+
+TEST(EnglishWordDictionaryRewriterTest, KeepsCompletionsWhenOpeningPrediction) {
+  EnglishWordDictionaryRewriter rewriter;
+  Segments segments;
+  Segment* segment = AddInputSegment("And", &segments);
+  ASSERT_TRUE(rewriter.Rewrite(BuildRequest("And", RequestType::SUGGESTION),
+                               &segments));
+  ASSERT_EQ(segment->candidate(1).value, "Android");
+  std::vector<std::string> suggestions;
+  for (const converter::Candidate* candidate : segment->candidates()) {
+    suggestions.push_back(candidate->value);
+  }
+
+  const ConversionRequest prediction = BuildRequest("And", RequestType::PREDICTION);
+  EXPECT_FALSE(rewriter.Rewrite(prediction, &segments));
+  ASSERT_EQ(segment->candidates_size(), suggestions.size());
+  for (size_t i = 0; i < suggestions.size(); ++i) {
+    EXPECT_EQ(segment->candidate(i).value, suggestions[i]);
+  }
+  // A second Tab must not grow the list or change the same candidate order.
+  EXPECT_FALSE(rewriter.Rewrite(prediction, &segments));
+  EXPECT_EQ(segment->candidates_size(), suggestions.size());
+}
+
+TEST(EnglishWordDictionaryRewriterTest, KeepsTruncatedRomajiSuggestionsOnFirstPage) {
+  EnglishWordDictionaryRewriter rewriter;
+  composer::Composer composer;
+  InsertASCIISequence("And", &composer);
+  Segments segments;
+  Segment* segment = AddInputSegment(composer.GetStringForPreedit(), &segments);
+  for (const absl::string_view value : {"Android", "Androids"}) {
+    converter::Candidate* candidate = segment->add_candidate();
+    candidate->value = std::string(value);
+    candidate->description = "英単語補完";
+    candidate->attributes = converter::Attribute::NO_VARIANTS_EXPANSION;
+  }
+  config::Config config;
+  config::ConfigHandler::GetDefaultConfig(&config);
+  config.set_use_english_word_dictionary(true);
+  const ConversionRequest prediction = ConversionRequestBuilder()
+      .SetComposer(composer)
+      .SetConfig(config)
+      .SetRequestType(RequestType::PREDICTION)
+      .Build();
+
+  ASSERT_TRUE(rewriter.Rewrite(prediction, &segments));
+  EXPECT_EQ(segment->candidate(0).value, composer.GetStringForPreedit());
+  EXPECT_EQ(segment->candidate(1).value, "Android");
+  EXPECT_EQ(segment->candidate(2).value, "Androids");
+  EXPECT_EQ(segment->candidate(1).description, "英単語補完");
+  EXPECT_LE(segment->candidates_size(), 9);
+  EXPECT_FALSE(rewriter.Rewrite(prediction, &segments));
+}
+
+TEST(EnglishWordDictionaryRewriterTest, PreservesTopCandidateWhenAlreadyCompletion) {
+  EnglishWordDictionaryRewriter rewriter;
+  Segments segments;
+  Segment* segment = AddInputSegment("Android", &segments);
+  segment->set_key("And");
+  ASSERT_TRUE(rewriter.Rewrite(BuildRequest("And", RequestType::PREDICTION),
+                               &segments));
+  EXPECT_EQ(segment->candidate(0).value, "Android");
+  EXPECT_EQ(segment->candidate(1).value, "Androids");
+  EXPECT_LE(segment->candidates_size(), 9);
+  EXPECT_FALSE(rewriter.Rewrite(BuildRequest("And", RequestType::PREDICTION),
+                                &segments));
 }
 
 TEST(EnglishWordDictionaryRewriterTest, CorrectsTransposedSpelling) {
