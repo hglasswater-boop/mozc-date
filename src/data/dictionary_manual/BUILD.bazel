@@ -32,6 +32,9 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "domain.txt",
     "katakana_english.tsv",
+    "modern_katakana_english.tsv",
+    "modern_katakana_english.json",
+    "modern_katakana_english.sources.json",
 ])
 
 filegroup(

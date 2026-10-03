@@ -32,14 +32,17 @@ def generate(mappings, dictionaries, noun_id):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", required=True)
+    parser.add_argument("--input", nargs="+", required=True)
     parser.add_argument("--id_def", required=True)
     parser.add_argument("--dictionary_txts", nargs="+", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
-    mappings = [tuple(line.rstrip().split("\t")) for line in
-                Path(args.input).read_text(encoding="utf-8").splitlines()
-                if line and not line.startswith("#")]
+    mappings = []
+    for input_path in args.input:
+        mappings.extend(
+            tuple(line.rstrip().split("\t")) for line in
+            Path(input_path).read_text(encoding="utf-8").splitlines()
+            if line and not line.startswith("#"))
     noun_id = next(int(line.split()[0]) for line in
                    Path(args.id_def).read_text(encoding="utf-8").splitlines()
                    if line.split()[1] == "名詞,一般,*,*,*,*,*")
