@@ -30,6 +30,8 @@
 #include "engine/engine.h"
 
 #include <memory>
+#include <array>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -37,9 +39,15 @@
 #include "absl/strings/string_view.h"
 #include "data_manager/data_manager.h"
 #include "data_manager/testing/mock_data_manager.h"
+#include "dictionary/dictionary_interface.h"
+#include "dictionary/dictionary_token.h"
+#include "converter/converter_interface.h"
+#include "converter/segments.h"
 #include "engine/modules.h"
 #include "engine/supplemental_model_interface.h"
 #include "protocol/engine_builder.pb.h"
+#include "protocol/config.pb.h"
+#include "request/conversion_request.h"
 #include "testing/gunit.h"
 #include "testing/mozctest.h"
 
@@ -113,6 +121,74 @@ TEST_F(EngineTest, ReloadModulesTest) {
           .value();
 
   CHECK_OK(engine_->ReloadModules(std::move(modules)));
+}
+
+// Use the shipped OSS data and DictionaryImpl, including the standard t13n
+// filter. A generator-only test cannot establish that these tokens are shipped.
+TEST_F(EngineTest, KatakanaEnglishDictionary) {
+  EngineReloadResponse response;
+  ASSERT_TRUE(engine_->SendEngineReloadRequest(oss_request_));
+  ASSERT_TRUE(engine_->MaybeReloadEngine(&response));
+  const auto& lexicon = engine_->GetModulesForTesting().GetDictionary();
+  struct Example {
+    absl::string_view key;
+    absl::string_view english;
+  };
+  const std::array<Example, 9> examples = {{
+      {"こんとろーる", "control"},
+      {"こんぴゅーた", "computer"},
+      {"こんぴゅーたー", "computer"},
+      {"さーば", "server"},
+      {"さーばー", "server"},
+      {"あいす", "Ice"},
+      {"ばす", "bus"},
+      {"こあ", "core"},
+      {"かー", "car"},
+  }};
+  class Values : public dictionary::DictionaryInterface::Callback {
+   public:
+    ResultType OnToken(absl::string_view, absl::string_view,
+                       dictionary::Token token) override {
+      values.insert(token.value);
+      return TRAVERSE_CONTINUE;
+    }
+    std::set<std::string> values;
+  };
+  for (const auto& example : examples) {
+    for (bool enabled : {true, false}) {
+      config::Config config;
+      config.set_use_t13n_conversion(enabled);
+      const auto request = ConversionRequestBuilder()
+                               .SetConfig(config)
+                               .SetKey(example.key)
+                               .Build();
+      Values callback;
+      lexicon.LookupExact(example.key, request.options(), &callback);
+      EXPECT_EQ(callback.values.count(std::string(example.english)), enabled)
+          << example.key;
+    }
+  }
+  // Exercise actual conversion too: English remains a candidate, below the
+  // original Japanese loanword. Do not rely only on low-level dictionary lookup.
+  for (bool enabled : {true, false}) {
+    config::Config config;
+    config.set_use_t13n_conversion(enabled);
+    const auto request = ConversionRequestBuilder()
+                             .SetConfig(config)
+                             .SetKey("こんとろーる")
+                             .Build();
+    Segments segments;
+    ASSERT_TRUE(engine_->GetConverter()->StartConversion(request, &segments));
+    ASSERT_EQ(segments.conversion_segments_size(), 1);
+    const auto& segment = segments.conversion_segment(0);
+    ASSERT_GT(segment.candidates_size(), 0);
+    EXPECT_EQ(segment.candidate(0).value, "コントロール");
+    bool found = false;
+    for (size_t i = 0; i < segment.candidates_size(); ++i) {
+      found |= segment.candidate(i).value == "control";
+    }
+    EXPECT_EQ(found, enabled);
+  }
 }
 
 // Tests the interaction with DataLoader for successful Engine

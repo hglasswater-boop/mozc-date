@@ -40,6 +40,12 @@ jobs:
             Pop-Location
           }
 
+      - name: Test reference dictionary import
+        shell: pwsh
+        run: |
+          python -m unittest discover --start-directory tools/dictionary --pattern 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { throw 'Dictionary import tests failed.' }
+
       - name: Test updater version compatibility
         shell: pwsh
         run: pwsh -NoProfile -File .github/scripts/test-updater.ps1
@@ -101,7 +107,7 @@ jobs:
           ANDROID_NDK_HOME: ""
         run: |
           $targets = @(Get-Content -LiteralPath '../test-targets.json' -Raw | ConvertFrom-Json)
-          bazelisk test @targets --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
+          bazelisk test @targets --test_output=errors --action_env=MOZC_DATE_PRODUCT_VERSION --config release_build --platforms=//:windows-x86_64
           if ($LASTEXITCODE -ne 0) { throw 'Required Windows tests failed.' }
 
       - name: Build x64 MSI

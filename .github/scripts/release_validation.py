@@ -21,11 +21,17 @@ TEST_TARGETS = (
     "//base:version_test",
     "//rewriter:version_rewriter_test",
     "//config:config_handler_test",
+    "//dictionary:gen_katakana_english_dictionary_test",
+    "//engine:engine_test",
     "//rewriter:date_rewriter_test",
     "//rewriter:english_word_dictionary_rewriter_test",
     "//rewriter:rewriter_test",
 )
 FEATURES = {
+    "katakana_english_conversion": [
+        "//dictionary:gen_katakana_english_dictionary_test",
+        "//engine:engine_test",
+    ],
     "date_conversion": [
         "//rewriter:date_rewriter_test", "//rewriter:rewriter_test"
     ],

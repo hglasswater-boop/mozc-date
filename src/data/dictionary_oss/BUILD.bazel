@@ -81,6 +81,7 @@ filegroup(
     srcs = [
         ":aux_dictionary",
         ":filtered_dictionary",
+        ":katakana_english_dictionary",
     ],
 )
 
@@ -141,4 +142,20 @@ diff_test(
     failure_message = "You need to update evaluation.tsv. See the BUILD file",
     file1 = "evaluation.tsv",
     file2 = ":evaluation",
+)
+genrule(
+    name = "katakana_english_dictionary",
+    srcs = [
+        "id.def",
+        ":base_dictionary_data",
+        "//data/dictionary_manual:katakana_english.tsv",
+    ],
+    outs = ["katakana_english_dictionary.txt"],
+    cmd = """
+        $(location //dictionary:gen_katakana_english_dictionary) \
+        --input $(location //data/dictionary_manual:katakana_english.tsv) \
+        --id_def $(location :id.def) --output $@ \
+        --dictionary_txts $(locations :base_dictionary_data)
+    """,
+    tools = ["//dictionary:gen_katakana_english_dictionary"],
 )

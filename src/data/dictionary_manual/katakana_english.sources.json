@@ -1,0 +1,13 @@
+{
+  "repository": "KEINOS/google-ime-user-dictionary-ja-en",
+  "revision": "7d241dafcf6ee1f9eafefc0ae7a929c095860246",
+  "sha256": {
+    "Google-ime-jp-カタカナ英語辞典/google-ime-jp-カタカナ英語辞書01-あ～お(1).txt": "1cb89e52e5c664c262121ee89cfa7361f930c0277e564c6ccb4a01fb865e888f",
+    "Google-ime-jp-カタカナ英語辞典/google-ime-jp-カタカナ英語辞書02-おぞん～さばら.txt": "2256b916a46a82b52ae5f9cbca5499a5aea0e897835408947fd6912bf6f73cf5",
+    "Google-ime-jp-カタカナ英語辞典/google-ime-jp-カタカナ英語辞書03-さはりん～でぃんぎー.txt": "c9314791c3d43bac9acdcbaec96542abf0928de403f52a3d301a129715f84de0",
+    "Google-ime-jp-カタカナ英語辞典/google-ime-jp-カタカナ英語辞書04-でぃんご～ひっぷ.txt": "a2f3e4daa220056b26b44318105ec41ed43e897637aedfb0d850f3264168eb75",
+    "Google-ime-jp-カタカナ英語辞典/google-ime-jp-カタカナ英語辞書05-ひっぷ～みすたいぷ.txt": "374e65a906b6a8666728a8aae1dc1e9a0835725e98a7bc146ed6332dd61e18fd",
+    "Google-ime-jp-カタカナ英語辞典/google-ime-jp-カタカナ英語辞書06-みずだこ～んびら.txt": "9f2e56634b45094da5b59a2f973eb3c47ef97f83b3f4995684920cb18631926d"
+  },
+  "entries": 35047
+}
