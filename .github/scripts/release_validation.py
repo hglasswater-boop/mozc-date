@@ -160,6 +160,13 @@ def configure(args):
     write_json(args.output, expected)
     write_json(args.test_targets, list(TEST_TARGETS))
     write_json(args.pe_targets, list(PE_TARGETS))
+    if args.materialize_version_file:
+        # Bazel's product version rules consume this file as a declared input.
+        # --action_env alone does not affect a cached/generated action whose
+        # input still contains the checked-in base version.
+        Path(args.version_file).write_text(
+            expected["product_version"] + "\n", encoding="utf-8"
+        )
     # Never replace MOZC_VERSION: it remains the independent engine version.
     with Path(args.env_file).open("a", encoding="utf-8") as output:
         output.write(f"MOZC_DATE_PRODUCT_VERSION={expected['product_version']}\n")
@@ -224,6 +231,7 @@ def main():
     configure_parser.add_argument("--tag", default="")
     configure_parser.add_argument("--previous-tags")
     configure_parser.add_argument("--version-file", required=True)
+    configure_parser.add_argument("--materialize-version-file", action="store_true")
     configure_parser.add_argument("--env-file", required=True)
     configure_parser.add_argument("--test-targets", required=True)
     configure_parser.add_argument("--pe-targets", required=True)

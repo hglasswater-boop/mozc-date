@@ -124,11 +124,35 @@ class ReleaseValidationTest(unittest.TestCase):
             root = Path(directory)
             (root / "version.txt").write_text("0.0.0\n", encoding="utf-8")
             args = SimpleNamespace(tag="", previous_tags=None, version_file=root / "version.txt",
+                                   materialize_version_file=False,
                                    env_file=root / "env", output=root / "version.json",
                                    test_targets=root / "targets.json", pe_targets=root / "pe.json")
             validation.configure(args)
             self.assertEqual((root / "env").read_text(), "MOZC_DATE_PRODUCT_VERSION=0.0.0\n")
             self.assertEqual(validation.read_json(root / "targets.json"), list(validation.TEST_TARGETS))
+
+    def test_tag_configuration_materializes_the_declared_bazel_version_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            version_file = root / "version.txt"
+            version_file.write_text("1.0.0.0\n", encoding="utf-8")
+            validation.write_json(root / "previous-tags.json", ["v1.0.0.0"])
+            args = SimpleNamespace(
+                tag="v1.0.1.0", previous_tags=root / "previous-tags.json",
+                version_file=version_file, materialize_version_file=True,
+                env_file=root / "env", output=root / "version.json",
+                test_targets=root / "targets.json", pe_targets=root / "pe.json",
+            )
+            validation.configure(args)
+            self.assertEqual(version_file.read_text(encoding="utf-8"), "1.0.1.0\n")
+            self.assertEqual(
+                validation.read_json(root / "version.json"),
+                validation.product_version("1.0.1.0"),
+            )
+            self.assertEqual(
+                (root / "env").read_text(encoding="utf-8"),
+                "MOZC_DATE_PRODUCT_VERSION=1.0.1.0\n",
+            )
 
     def test_manifest_refuses_unverified_feature_target_or_wrong_commit(self):
         with tempfile.TemporaryDirectory() as directory:

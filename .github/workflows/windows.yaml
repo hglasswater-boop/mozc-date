@@ -59,7 +59,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $arguments = @('configure', '--version-file', 'src/product_version.txt', '--env-file', $env:GITHUB_ENV,
+          $arguments = @('configure', '--version-file', 'src/product_version.txt', '--materialize-version-file', '--env-file', $env:GITHUB_ENV,
                          '--output', 'release-version.json', '--test-targets', 'test-targets.json', '--pe-targets', 'pe-targets.json')
           if ($env:GITHUB_REF.StartsWith('refs/tags/')) {
             $publishedTags = @(gh api "repos/$($env:GITHUB_REPOSITORY)/releases?per_page=100" --paginate --jq '.[] | select(.draft == false) | .tag_name')
