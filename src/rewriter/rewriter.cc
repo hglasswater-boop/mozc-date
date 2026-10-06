@@ -296,6 +296,21 @@ bool HasDynamicTimeToken(const std::string& format) {
          format.find("{MINUTE}") != std::string::npos;
 }
 
+bool HasConfiguredDateFormats(const config::Config& config) {
+  if (config.date_conversion_custom_formats_size() > 0) {
+    for (const std::string& format : config.date_conversion_custom_formats()) {
+      if (!format.empty()) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // Once initialized, the list overrides the legacy compatibility field,
+  // including an intentionally empty list.
+  return !config.date_conversion_custom_formats_initialized() &&
+         !config.date_conversion_custom_format().empty();
+}
+
 bool CanFilterToConfiguredDateFormats(const config::Config& config) {
   if (config.date_conversion_custom_formats_size() > 0) {
     for (const std::string& format : config.date_conversion_custom_formats()) {
@@ -340,8 +355,25 @@ bool IsConfiguredDateValue(const config::Config& config, int year, int month,
     return false;
   }
 
-  return MatchesConfiguredDateFormat(config.date_conversion_custom_format(),
+  return !config.date_conversion_custom_formats_initialized() &&
+         MatchesConfiguredDateFormat(config.date_conversion_custom_format(),
                                      year, month, day, value);
+}
+
+bool IsEraDateValue(int year, int month, int day, const std::string& value) {
+  for (const std::string& era : DateRewriter::AdToEra(year, month)) {
+    std::string era_date = era + "年" + std::to_string(month) + "月" +
+                           std::to_string(day) + "日";
+    if (value == era_date) {
+      return true;
+    }
+    era_date.append("({WEEKDAY})");
+    ExpandDateFormatTokens(year, month, day, &era_date);
+    if (value == era_date) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool IsDateCandidateDescription(const std::string& description) {
@@ -360,8 +392,10 @@ bool IsDateCandidateDescription(const std::string& description) {
 // as today/tomorrow and explicit inputs such as 9/8 keep their own target date.
 //
 // Once the date-format settings are initialized, this rewriter also removes
-// generated date candidates that are not represented by the ordered list. The
-// user's explicit raw input is never removed by this formatting filter.
+// representable date candidates that are not in the ordered list. A nonempty
+// list still preserves era dates because no era token can represent them. An
+// initialized empty list removes all generated dates. Explicit raw input is
+// preserved in either case.
 class CustomDateFormatTokenRewriter final : public RewriterInterface {
  public:
   int capability(const ConversionRequest& request) const override {
@@ -393,12 +427,23 @@ class CustomDateFormatTokenRewriter final : public RewriterInterface {
       // usable for those candidates, but must never mix multiple weekday dates.
       const CalendarDate* single_date = FindSingleDate(dates);
       const bool filter = CanFilterToConfiguredDateFormats(request.config());
+      const bool preserve_era = HasConfiguredDateFormats(request.config());
+      // Match DateRewriter's single-segment raw-input path. The converter may
+      // normalize the key's slash to a middle dot, so the key alone is not a
+      // sufficient record of the user's explicit input.
+      const std::string raw_input =
+          segments->conversion_segments_size() == 1
+              ? request.composer().GetRawSubString(0, segment->key_len())
+              : std::string();
       for (size_t candidate_index = segment->candidates_size();
            candidate_index > 0; --candidate_index) {
         const size_t index = candidate_index - 1;
         converter::Candidate* candidate =
             segment->mutable_candidate(index);
-        const bool is_raw_input = candidate->value == segment->key();
+        if (candidate->value == segment->key() ||
+            (!raw_input.empty() && candidate->value == raw_input)) {
+          continue;
+        }
         const auto it = dates.find(candidate->description);
         const CalendarDate* date =
             it == dates.end() ? single_date : &it->second;
@@ -413,12 +458,13 @@ class CustomDateFormatTokenRewriter final : public RewriterInterface {
           }
           modified = true;
         }
-        if (!filter || !IsDateCandidateDescription(candidate->description) ||
-            is_raw_input) {
+        if (!filter || !IsDateCandidateDescription(candidate->description)) {
           continue;
         }
         if (IsConfiguredDateValue(request.config(), date->year, date->month,
-                                  date->day, candidate->value)) {
+                                  date->day, candidate->value) ||
+            (preserve_era && IsEraDateValue(date->year, date->month, date->day,
+                                           candidate->value))) {
           continue;
         }
         segment->erase_candidate(static_cast<int>(index));

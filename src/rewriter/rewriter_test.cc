@@ -36,11 +36,14 @@
 
 #include "absl/log/check.h"
 #include "base/clock_mock.h"
+#include "composer/composer.h"
+#include "composer/table.h"
 #include "converter/attribute.h"
 #include "converter/candidate.h"
 #include "converter/segments.h"
 #include "data_manager/testing/mock_data_manager.h"
 #include "engine/modules.h"
+#include "protocol/commands.pb.h"
 #include "protocol/config.pb.h"
 #include "request/conversion_request.h"
 #include "rewriter/rewriter_interface.h"
@@ -218,33 +221,163 @@ TEST_F(RewriterTest, ExplicitDateInputSurvivesConfiguredFormatFiltering) {
   config.set_date_conversion_custom_formats_initialized(true);
   config.add_date_conversion_custom_formats(
       "{YEAR}/{MONTH_NOZERO}/{DATE_NOZERO}");
+  config.add_date_conversion_custom_formats("{YEAR}_{MONTH}_{DATE}");
+  auto table = std::make_shared<composer::Table>();
+  const commands::Request command_request;
+  composer::Composer composer(table, command_request, config);
+  composer.InsertCharacter("9/8");
+  const ConversionRequest request = ConversionRequestBuilder()
+                                        .SetComposer(composer)
+                                        .SetConfig(config)
+                                        .Build();
+
+  for (const std::string key : {"9/8", "9・8"}) {
+    SCOPED_TRACE(key);
+    Segments segments;
+    Segment* seg = segments.push_back_segment();
+    seg->set_key(key);
+    converter::Candidate* raw = seg->add_candidate();
+    raw->key = raw->content_key = key;
+    raw->value = raw->content_value = key;
+
+    // Supply only an original converter candidate. DateRewriter must generate
+    // every date candidate before the custom-format filter processes them.
+    ASSERT_TRUE(GetRewriter()->Rewrite(request, &segments));
+    EXPECT_TRUE(HasCandidateValue(*seg, "9/8"));
+    EXPECT_FALSE(HasCandidateValue(*seg, "2026/09/08"));
+    EXPECT_FALSE(HasCandidateValue(*seg, "2026-09-08"));
+    EXPECT_FALSE(HasCandidateValue(*seg, "2026/09/08(火)"));
+    EXPECT_FALSE(HasCandidateValue(*seg, "2026年9月8日(火)"));
+    std::vector<std::string> date_values;
+    size_t raw_count = 0;
+    for (size_t i = 0; i < seg->candidates_size(); ++i) {
+      const converter::Candidate& candidate = seg->candidate(i);
+      if (candidate.value == "9/8") {
+        ++raw_count;
+        EXPECT_EQ(candidate.content_value, "9/8");
+      } else if (candidate.description.find("日付") != std::string::npos) {
+        date_values.push_back(candidate.value);
+        EXPECT_EQ(candidate.content_value, candidate.value);
+      }
+    }
+    EXPECT_EQ(raw_count, 1);
+    EXPECT_EQ(date_values, (std::vector<std::string>{
+                              "2026/9/8", "2026_09_08", "令和8年9月8日",
+                              "令和8年9月8日(火)"}));
+  }
+}
+
+TEST_F(RewriterTest, ExplicitDateEraCandidatesFollowInputDate) {
+  const ScopedClockMock clock(ParseTimeOrDie("2026-09-30T12:00:00Z"));
+  config::Config config;
+  config.set_date_conversion_custom_formats_initialized(true);
+  config.add_date_conversion_custom_formats("{YEAR}/{MONTH}/{DATE}");
   const ConversionRequest request =
       ConversionRequestBuilder().SetConfig(config).Build();
+  struct TestCase {
+    const char* key;
+    std::vector<std::string> expected;
+  };
+  const TestCase cases[] = {
+      {"2019/4/30", {"2019/04/30", "平成31年4月30日", "平成31年4月30日(火)"}},
+      {"2019/5/1", {"2019/05/01", "令和元年5月1日", "令和元年5月1日(水)"}},
+  };
+  for (const TestCase& test : cases) {
+    SCOPED_TRACE(test.key);
+    Segments segments;
+    Segment* segment = segments.add_segment();
+    segment->set_key(test.key);
+    converter::Candidate* raw = segment->add_candidate();
+    raw->key = raw->content_key = test.key;
+    raw->value = raw->content_value = test.key;
+    ASSERT_TRUE(GetRewriter()->Rewrite(request, &segments));
+    std::vector<std::string> date_values;
+    for (size_t i = 0; i < segment->candidates_size(); ++i) {
+      const converter::Candidate& candidate = segment->candidate(i);
+      if (candidate.description.find("日付") != std::string::npos) {
+        date_values.push_back(candidate.value);
+        EXPECT_EQ(candidate.content_value, candidate.value);
+      }
+    }
+    EXPECT_EQ(date_values, test.expected);
+    EXPECT_TRUE(HasCandidateValue(*segment, test.key));
+  }
+}
 
+TEST_F(RewriterTest, EmptyDateFormatListKeepsComposerRawInputOnly) {
+  const ScopedClockMock clock(ParseTimeOrDie("2026-09-30T12:00:00Z"));
+  for (const bool has_empty_entry : {false, true}) {
+    SCOPED_TRACE(has_empty_entry);
+    config::Config config;
+    config.set_date_conversion_custom_formats_initialized(true);
+    // A stale compatibility value must not override the initialized list.
+    config.set_date_conversion_custom_format("{YEAR}/{MONTH}/{DATE}");
+    if (has_empty_entry) {
+      config.add_date_conversion_custom_formats("");
+    }
+    auto table = std::make_shared<composer::Table>();
+    const commands::Request command_request;
+    composer::Composer composer(table, command_request, config);
+    composer.InsertCharacter("9/8");
+    const ConversionRequest request = ConversionRequestBuilder()
+                                          .SetComposer(composer)
+                                          .SetConfig(config)
+                                          .Build();
+    Segments segments;
+    Segment* segment = segments.add_segment();
+    segment->set_key("9・8");
+    converter::Candidate* original = segment->add_candidate();
+    original->key = original->content_key = "9・8";
+    original->value = original->content_value = "9・8";
+    converter::Candidate* ordinary = segment->add_candidate();
+    ordinary->key = ordinary->content_key = "9・8";
+    ordinary->value = ordinary->content_value = "keep-me";
+
+    ASSERT_TRUE(GetRewriter()->Rewrite(request, &segments));
+    EXPECT_TRUE(HasCandidateValue(*segment, "9/8"));
+    EXPECT_TRUE(HasCandidateValue(*segment, "9・8"));
+    EXPECT_TRUE(HasCandidateValue(*segment, "keep-me"));
+    for (size_t i = 0; i < segment->candidates_size(); ++i) {
+      const converter::Candidate& candidate = segment->candidate(i);
+      if (candidate.description.find("日付") != std::string::npos) {
+        EXPECT_EQ(candidate.value, "9/8");
+        EXPECT_EQ(candidate.content_value, "9/8");
+      }
+    }
+  }
+}
+
+TEST_F(RewriterTest, ComposerRawInputDoesNotExemptOtherSegments) {
+  config::Config config;
+  config.set_date_conversion_custom_formats_initialized(true);
+  config.add_date_conversion_custom_formats(
+      "{YEAR}/{MONTH_NOZERO}/{DATE_NOZERO}");
+  auto table = std::make_shared<composer::Table>();
+  const commands::Request command_request;
+  composer::Composer composer(table, command_request, config);
+  composer.InsertCharacter("9/8");
+  const ConversionRequest request = ConversionRequestBuilder()
+                                        .SetComposer(composer)
+                                        .SetConfig(config)
+                                        .Build();
   Segments segments;
-  Segment* seg = segments.push_back_segment();
-  seg->set_key("9/8");
-
-  converter::Candidate* raw = seg->add_candidate();
-  raw->key = raw->content_key = "9/8";
-  raw->value = raw->content_value = "9/8";
-  raw->description = "日付";
-
-  converter::Candidate* canonical = seg->add_candidate();
-  canonical->key = canonical->content_key = "9/8";
-  canonical->value = canonical->content_value = "2026/09/08";
-  canonical->description = "日付";
-
-  converter::Candidate* configured = seg->add_candidate();
-  configured->key = configured->content_key = "9/8";
-  configured->value = configured->content_value =
-      "{YEAR}/{MONTH_NOZERO}/{DATE_NOZERO}";
-  configured->description = "日付";
-
-  EXPECT_TRUE(GetRewriter()->Rewrite(request, &segments));
-  EXPECT_TRUE(HasCandidateValue(*seg, "9/8"));
-  EXPECT_TRUE(HasCandidateValue(*seg, "2026/9/8"));
-  EXPECT_FALSE(HasCandidateValue(*seg, "2026/09/08"));
+  Segment* segment = segments.add_segment();
+  segment->set_key("9・8");
+  for (const std::string value : {"9/8", "2026/09/08", "2026/9/8"}) {
+    converter::Candidate* candidate = segment->add_candidate();
+    candidate->key = candidate->content_key = "9・8";
+    candidate->value = candidate->content_value = value;
+    candidate->description = "日付";
+  }
+  Segment* other = segments.add_segment();
+  other->set_key("つづき");
+  converter::Candidate* ordinary = other->add_candidate();
+  ordinary->key = ordinary->content_key = "つづき";
+  ordinary->value = ordinary->content_value = "続き";
+  ASSERT_TRUE(GetRewriter()->Rewrite(request, &segments));
+  EXPECT_FALSE(HasCandidateValue(*segment, "9/8"));
+  EXPECT_TRUE(HasCandidateValue(*segment, "2026/9/8"));
+  EXPECT_TRUE(HasCandidateValue(*other, "続き"));
 }
 
 TEST_F(RewriterTest, EmptyInitializedDateFormatListRemovesDateCandidates) {
@@ -285,28 +418,40 @@ TEST_F(RewriterTest, WeekdayDatesSurviveConfiguredFormatFiltering) {
   const TestCase cases[] = {
       {"2026-09-25T12:00:00Z", "きんよう", "金曜",
        {"2026/9/25(金)", "2026年9月25日(金曜日)",
+        "令和8年9月25日",
         "2026/10/2(金)", "2026年10月2日(金曜日)",
-        "2026/9/18(金)", "2026年9月18日(金曜日)"}},
+        "令和8年10月2日",
+        "2026/9/18(金)", "2026年9月18日(金曜日)", "令和8年9月18日"}},
       {"2026-09-25T12:00:00Z", "きんようび", "金曜日",
        {"2026/9/25(金)", "2026年9月25日(金曜日)",
+        "令和8年9月25日",
         "2026/10/2(金)", "2026年10月2日(金曜日)",
-        "2026/9/18(金)", "2026年9月18日(金曜日)"}},
+        "令和8年10月2日",
+        "2026/9/18(金)", "2026年9月18日(金曜日)", "令和8年9月18日"}},
       {"2026-12-31T12:00:00Z", "げつよう", "月曜",
        {"2026/12/28(月)", "2026年12月28日(月曜日)",
+        "令和8年12月28日",
         "2027/1/4(月)", "2027年1月4日(月曜日)",
-        "2026/12/21(月)", "2026年12月21日(月曜日)"}},
+        "令和9年1月4日",
+        "2026/12/21(月)", "2026年12月21日(月曜日)", "令和8年12月21日"}},
       {"2026-12-31T12:00:00Z", "げつようび", "月曜日",
        {"2026/12/28(月)", "2026年12月28日(月曜日)",
+        "令和8年12月28日",
         "2027/1/4(月)", "2027年1月4日(月曜日)",
-        "2026/12/21(月)", "2026年12月21日(月曜日)"}},
+        "令和9年1月4日",
+        "2026/12/21(月)", "2026年12月21日(月曜日)", "令和8年12月21日"}},
       {"2026-09-27T12:00:00Z", "にちよう", "日曜",
        {"2026/9/27(日)", "2026年9月27日(日曜日)",
+        "令和8年9月27日",
         "2026/10/4(日)", "2026年10月4日(日曜日)",
-        "2026/9/20(日)", "2026年9月20日(日曜日)"}},
+        "令和8年10月4日",
+        "2026/9/20(日)", "2026年9月20日(日曜日)", "令和8年9月20日"}},
       {"2026-09-27T12:00:00Z", "にちようび", "日曜日",
        {"2026/9/27(日)", "2026年9月27日(日曜日)",
+        "令和8年9月27日",
         "2026/10/4(日)", "2026年10月4日(日曜日)",
-        "2026/9/20(日)", "2026年9月20日(日曜日)"}},
+        "令和8年10月4日",
+        "2026/9/20(日)", "2026年9月20日(日曜日)", "令和8年9月20日"}},
   };
   config::Config config;
   config.set_date_conversion_custom_formats_initialized(true);
@@ -341,8 +486,9 @@ TEST_F(RewriterTest, WeekdayDatesSurviveConfiguredFormatFiltering) {
     }
     EXPECT_EQ(values, test.expected);
     EXPECT_EQ(descriptions, (std::vector<std::string>{
-        "今週の日付", "今週の日付", "来週の日付", "来週の日付",
-        "先週の日付", "先週の日付"}));
+        "今週の日付", "今週の日付", "今週の日付",
+        "来週の日付", "来週の日付", "来週の日付",
+        "先週の日付", "先週の日付", "先週の日付"}));
     EXPECT_TRUE(HasCandidateValue(*segment, test.value));
   }
 }
