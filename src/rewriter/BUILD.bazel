@@ -670,6 +670,7 @@ mozc_cc_library(
     textual_hdrs = ["english_word_dictionary_data.inc"],
     deps = [
         ":rewriter_interface",
+        "//base:util",
         "//converter:attribute",
         "//converter:segments",
         "//protocol:config_cc_proto",

@@ -215,6 +215,67 @@ TEST(EnglishWordDictionaryRewriterTest, KeepsCompletionsWhenOpeningPrediction) {
   EXPECT_EQ(segment->candidates_size(), suggestions.size());
 }
 
+TEST(EnglishWordDictionaryRewriterTest, DoesNotInterpretJapaneseAsEnglish) {
+  EnglishWordDictionaryRewriter rewriter;
+  for (const absl::string_view input : {"areha", "are", "soreha"}) {
+    SCOPED_TRACE(input);
+    composer::Composer composer;
+    InsertASCIISequence(input, &composer);
+    const std::string composition = composer.GetStringForPreedit();
+    EXPECT_NE(composition, input);
+    for (const RequestType type :
+         {RequestType::SUGGESTION, RequestType::PREDICTION,
+          RequestType::CONVERSION}) {
+      SCOPED_TRACE(static_cast<int>(type));
+      Segments segments;
+      Segment* segment = AddInputSegment(composition, &segments);
+      const ConversionRequest request = ConversionRequestBuilder()
+          .SetComposer(composer)
+          .SetRequestType(type)
+          .Build();
+
+      EXPECT_FALSE(rewriter.Rewrite(request, &segments));
+      ASSERT_EQ(segment->candidates_size(), 1);
+      EXPECT_EQ(segment->candidate(0).value, composition);
+    }
+  }
+}
+
+TEST(EnglishWordDictionaryRewriterTest, CorrectsMixedRomajiEnglishInput) {
+  EnglishWordDictionaryRewriter rewriter;
+  composer::Composer composer;
+  InsertASCIISequence("proparty", &composer);
+  Segments segments;
+  Segment* segment = AddInputSegment(composer.GetStringForPreedit(), &segments);
+  const ConversionRequest request = ConversionRequestBuilder()
+      .SetComposer(composer)
+      .SetRequestType(RequestType::CONVERSION)
+      .Build();
+
+  EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+  EXPECT_NE(FindCandidate(*segment, "property"), nullptr);
+}
+
+TEST(EnglishWordDictionaryRewriterTest, IndependentOfJapaneseSpellingCorrection) {
+  EnglishWordDictionaryRewriter rewriter;
+  config::Config config;
+  config::ConfigHandler::GetDefaultConfig(&config);
+  config.set_use_spelling_correction(false);
+  config.set_use_english_spelling_correction(true);
+  config.set_use_english_word_dictionary(true);
+  Segments segments;
+  Segment* segment = AddInputSegment("recieve", &segments);
+  const ConversionRequest request = ConversionRequestBuilder()
+      .SetConfig(config)
+      .SetKey("recieve")
+      .SetRequestType(RequestType::CONVERSION)
+      .Build();
+
+  EXPECT_EQ(rewriter.capability(request), RewriterInterface::ALL);
+  EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+  EXPECT_NE(FindCandidate(*segment, "receive"), nullptr);
+}
+
 TEST(EnglishWordDictionaryRewriterTest, KeepsTruncatedRomajiSuggestionsOnFirstPage) {
   EnglishWordDictionaryRewriter rewriter;
   composer::Composer composer;
