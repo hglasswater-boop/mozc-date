@@ -30,14 +30,18 @@
 #include "rewriter/english_word_dictionary_rewriter.h"
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "composer/composer.h"
+#include "composer/table.h"
 #include "config/config_handler.h"
 #include "converter/attribute.h"
 #include "converter/candidate.h"
 #include "converter/segments.h"
+#include "protocol/commands.pb.h"
 #include "protocol/config.pb.h"
 #include "request/conversion_request.h"
 #include "rewriter/rewriter_interface.h"
@@ -82,6 +86,11 @@ ConversionRequest BuildRequest(absl::string_view key, RequestType type,
 }
 
 void InsertASCIISequence(absl::string_view text, composer::Composer* composer) {
+  // The default Composer has an empty table and only produces full-width
+  // alphabet characters. Load the real romaji rules to exercise kana input.
+  auto table = std::make_shared<composer::Table>();
+  table->InitializeWithRequestAndConfig(commands::Request(), config::Config());
+  composer->SetTable(table);
   for (const char c : text) {
     commands::KeyEvent key;
     key.set_key_code(c);
@@ -213,6 +222,73 @@ TEST(EnglishWordDictionaryRewriterTest, KeepsCompletionsWhenOpeningPrediction) {
   // A second Tab must not grow the list or change the same candidate order.
   EXPECT_FALSE(rewriter.Rewrite(prediction, &segments));
   EXPECT_EQ(segment->candidates_size(), suggestions.size());
+}
+
+TEST(EnglishWordDictionaryRewriterTest, DoesNotInterpretJapaneseAsEnglish) {
+  EnglishWordDictionaryRewriter rewriter;
+  struct TestCase {
+    absl::string_view input;
+    absl::string_view composition;
+  };
+  constexpr TestCase kCases[] = {
+      {"areha", "あれは"}, {"are", "あれ"}, {"soreha", "それは"}};
+  for (const auto& [input, expected_composition] : kCases) {
+    SCOPED_TRACE(input);
+    composer::Composer composer;
+    InsertASCIISequence(input, &composer);
+    const std::string composition = composer.GetStringForPreedit();
+    ASSERT_EQ(composition, expected_composition);
+    for (const RequestType type :
+         {RequestType::SUGGESTION, RequestType::PREDICTION,
+          RequestType::CONVERSION}) {
+      SCOPED_TRACE(static_cast<int>(type));
+      Segments segments;
+      Segment* segment = AddInputSegment(composition, &segments);
+      const ConversionRequest request = ConversionRequestBuilder()
+          .SetComposer(composer)
+          .SetRequestType(type)
+          .Build();
+
+      EXPECT_FALSE(rewriter.Rewrite(request, &segments));
+      ASSERT_EQ(segment->candidates_size(), 1);
+      EXPECT_EQ(segment->candidate(0).value, composition);
+    }
+  }
+}
+
+TEST(EnglishWordDictionaryRewriterTest, CorrectsMixedRomajiEnglishInput) {
+  EnglishWordDictionaryRewriter rewriter;
+  composer::Composer composer;
+  InsertASCIISequence("proparty", &composer);
+  Segments segments;
+  Segment* segment = AddInputSegment(composer.GetStringForPreedit(), &segments);
+  const ConversionRequest request = ConversionRequestBuilder()
+      .SetComposer(composer)
+      .SetRequestType(RequestType::CONVERSION)
+      .Build();
+
+  EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+  EXPECT_NE(FindCandidate(*segment, "property"), nullptr);
+}
+
+TEST(EnglishWordDictionaryRewriterTest, IndependentOfJapaneseSpellingCorrection) {
+  EnglishWordDictionaryRewriter rewriter;
+  config::Config config;
+  config::ConfigHandler::GetDefaultConfig(&config);
+  config.set_use_spelling_correction(false);
+  config.set_use_english_spelling_correction(true);
+  config.set_use_english_word_dictionary(true);
+  Segments segments;
+  Segment* segment = AddInputSegment("recieve", &segments);
+  const ConversionRequest request = ConversionRequestBuilder()
+      .SetConfig(config)
+      .SetKey("recieve")
+      .SetRequestType(RequestType::CONVERSION)
+      .Build();
+
+  EXPECT_EQ(rewriter.capability(request), RewriterInterface::ALL);
+  EXPECT_TRUE(rewriter.Rewrite(request, &segments));
+  EXPECT_NE(FindCandidate(*segment, "receive"), nullptr);
 }
 
 TEST(EnglishWordDictionaryRewriterTest, KeepsTruncatedRomajiSuggestionsOnFirstPage) {

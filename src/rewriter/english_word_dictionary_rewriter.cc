@@ -41,6 +41,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "base/util.h"
 #include "composer/composer.h"
 #include "converter/attribute.h"
 #include "converter/candidate.h"
@@ -508,7 +509,14 @@ bool EnglishWordDictionaryRewriter::Rewrite(const ConversionRequest& request,
 
   std::string composer_raw_input;
   if (segments->conversion_segments_size() == 1) {
-    composer_raw_input = request.composer().GetRawString();
+    // Romaji keystrokes alone do not indicate English input: "areha" is
+    // ordinary Japanese "あれは". Only recover the raw spelling when the
+    // displayed composition still contains alphabet characters (e.g. "gith").
+    // Explicit ASCII segment keys remain usable without a composer.
+    if (Util::ContainsScriptType(request.composer().GetStringForPreedit(),
+                                 Util::ALPHABET)) {
+      composer_raw_input = request.composer().GetRawString();
+    }
   }
 
   bool modified = false;

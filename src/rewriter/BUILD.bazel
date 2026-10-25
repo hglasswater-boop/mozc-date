@@ -670,6 +670,7 @@ mozc_cc_library(
     textual_hdrs = ["english_word_dictionary_data.inc"],
     deps = [
         ":rewriter_interface",
+        "//base:util",
         "//converter:attribute",
         "//converter:segments",
         "//protocol:config_cc_proto",
@@ -685,9 +686,12 @@ mozc_cc_test(
     srcs = ["english_word_dictionary_rewriter_test.cc"],
     deps = [
         ":english_word_dictionary_rewriter",
+        "//composer:composer",
+        "//composer:table",
         "//config:config_handler",
         "//converter:attribute",
         "//converter:segments",
+        "//protocol:commands_cc_proto",
         "//protocol:config_cc_proto",
         "//request:conversion_request",
         "//testing:gunit_main",
